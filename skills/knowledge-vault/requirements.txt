@@ -1,0 +1,6 @@
+# Core — document conversion
+markitdown[all]>=0.1.5
+marker-pdf>=1.10.0
+
+# Optional — audio/video transcription (uncomment to enable)
+# faster-whisper>=1.0.0
