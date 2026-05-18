@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.3.2
+version: 1.6.1
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"knowledge vault"、"second brain"、
@@ -23,11 +23,15 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
+> **Version**: 1.6.1. If encountering issues already fixed in recent versions, check
+> whether this skill is outdated — compare SKILL.md frontmatter `version` with
+> CHANGELOG.md latest entry.
+
 Match user intent to the correct phase before executing:
 
 | User intent | Phase | Action |
 |-------------|-------|--------|
-| "初始化知识库" / first-time setup | Phase 1: Initialize | Run `init_vault.py` |
+| "初始化知识库" / first-time setup | Phase 1: Initialize | Run `init_vault.py`，提示用户编辑 purpose.md |
 | "摄取文件" / convert documents / add to vault | Phase 2: Ingest | Run `ingest.py`, then suggest Digest |
 | "消化知识" / process new content / summarize | Phase 3: Digest | Pre-checks → Digest → Self-check |
 | Ask a question / explore a topic / generate content | Phase 4: Output | Layered retrieval from index |
@@ -40,9 +44,11 @@ When in doubt, ask the user which operation they want.
 
 ```
 <vault-root>/
+├── purpose.md              ← Knowledge base goals, scope, key questions (user-edited)
 ├── raw/                    ← Original materials (by date YYYY-MM-DD)
 │   └── images/             ← Extracted images
 ├── knowledge/
+│   ├── overview.md         ← Narrative overview of the entire KB (auto-updated)
 │   ├── summaries/          ← Structured summaries
 │   ├── concepts/           ← Concept cards
 │   ├── topics/             ← Topic pages
@@ -86,6 +92,11 @@ python <skill-path>/scripts/init_vault.py --check-env
 ```
 
 This is idempotent — running it on an existing vault only fills in missing pieces.
+
+After initialization, **edit `purpose.md`** in the vault root to define what this
+knowledge base is for, what questions drive it, and what's in/out of scope.
+This file guides Digest decisions and Output retrieval boundaries.
+For existing vaults, create `purpose.md` manually using `templates/tpl-purpose.md`.
 
 ## Phase 2: Ingest
 
@@ -155,6 +166,12 @@ for detailed rules on deduplication, image processing, and naming.
    new concepts/topics that might be created). Wait for user confirmation
    before proceeding. If no new files, report and stop — do not enter digestion.
 
+5. **Filename safety scan**: Scan all `NEW` files from step 3 for filenames
+   containing problematic characters (Chinese curly quotes `""` `''`).
+   On Windows, these characters break Bash shell path parsing and make files
+   unreadable by the Read tool. If found, rename the files by removing these
+   characters, then re-run step 3. Report all renames to the user before proceeding.
+
 ### Digestion workflow (per new raw file)
 
 The digestion is a **two-step process**: analyze first, then generate.
@@ -164,11 +181,14 @@ The digestion is a **two-step process**: analyze first, then generate.
 Before any analysis, mentally correct the transcript text. ASR output
 contains homophone errors, mistranscribed proper nouns, and misaligned syllables
 that rule-based correction cannot fix. Use context to identify and correct errors
-such as: "前哨科技"→"科技前哨", "C dancy"→"Seedance", "Wales米斯"→"Will Smith",
+such as: "前哨科技"→"科技前沿", "C dancy"→"Seedance", "Wales米斯"→"Will Smith",
 "锦细量"→"信息量", etc. Do NOT modify the raw file — corrections are applied in
 your understanding only, and reflected in the generated summary/concepts/topics.
 
 #### Step 1: Analysis
+
+**If `purpose.md` exists in vault root, read it first** — it defines what this
+knowledge base cares about, which informs what to emphasize and de-emphasize.
 
 Read the raw file AND the current state of the knowledge base, then produce
 a structured analysis covering:
@@ -243,6 +263,14 @@ Using the analysis from Step 1 as context, generate wiki files:
    wiki content, report them to the user explicitly after generation is complete.
    Do not silently resolve contradictions — the user decides.
 
+6. **Update overview** → `knowledge/overview.md`
+   - Write 2-5 paragraphs describing the knowledge base's current coverage,
+     key themes, and overall state.
+   - Use template: `templates/tpl-overview.md`
+   - If overview.md already exists, intelligently update it — preserve existing
+     structure, add new themes, refresh "当前焦点" section.
+   - If overview.md doesn't exist, create it.
+
 ### Post-digestion self-check (mandatory)
 
 After digesting all files, verify every item:
@@ -273,10 +301,13 @@ scenario workflows, and output standards.
 ### Retrieval Strategy
 
 All consumption scenarios follow a layered retrieval:
-`index.md → topic pages → concept cards → summaries → raw files`
+`overview.md → index.md → topic pages → concept cards → summaries → raw files`
 
-Not every request needs full traversal. Quick Q&A may only need index +
-concepts; deep exploration needs the full path.
+If `purpose.md` exists, consult it to understand the knowledge base's scope
+before retrieval — helps determine answer boundaries.
+
+Not every request needs full traversal. See `references/output-rules.md` for
+the three-level retrieval depth strategy (shallow/medium/deep).
 
 ### Consumption Scenarios
 
@@ -374,3 +405,15 @@ If digestion is interrupted (session ends, script fails, user aborts):
 - "消化知识库的新内容" → 执行完整 Digest 流程（去重→摘要→概念→主题→索引）
 - "知识库里关于 AI 编程的内容" → 从 index.md 检索，沿 topic → concept → summary 路径回答
 - "跑一次知识巡检" → 执行 7 项检查，输出 audit-report
+
+## Sync
+
+When the user says "同步 skill" / "sync skill" / "更新 knowledge-vault":
+
+1. Copy skill files to target project's `.claude/skills/knowledge-vault/`:
+   ```bash
+   cp -r scripts/ references/ templates/ SKILL.md README.md CHANGELOG.md \
+     <your-project>/.claude/skills/knowledge-vault/
+   ```
+2. Verify: `SKILL.md` frontmatter `version` matches `CHANGELOG.md` first version header
+3. Report synced files and version

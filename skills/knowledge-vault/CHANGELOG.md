@@ -1,5 +1,33 @@
 # Knowledge Vault Changelog
 
+## [v1.6.1] - 2026-05-18
+
+### Fixed
+- 修复 Windows 环境下文件名含中文弯引号（`""`）时 Bash/Read 工具路径解析失败的问题
+- 修复 SKILL.md frontmatter `version` 字段与 CHANGELOG 版本长期不同步的问题
+
+### Added
+- SKILL.md frontmatter `version` 改为必填字段，每次发版强制与 CHANGELOG 同步更新
+- Digest 预检新增第 5 步「文件名安全扫描」：检测 raw/ 文件名中的中文引号等特殊字符并自动重命名
+- SKILL.md 新增 `## Sync` 段落：Agent 可通过触发词执行同步+版本校验
+- SKILL.md Phase Router 前新增静态版本提示文本
+
+---
+
+## [v1.6.0] - 2026-05-12
+
+### Added
+- **Purpose 文件**：新增 `templates/tpl-purpose.md`，初始化时复制到 vault 根目录，定义知识库目标、关键问题和研究范围
+- **Overview 全局概览**：新增 `knowledge/overview.md`，Digest 完成后自动更新，提供知识库全貌叙述
+- **三级检索深度策略**：浅层（简单问答 ≈ 5 文件）/ 中层（主题探索 ≈ 10 文件）/ 深层（跨域分析 ≈ 20 文件），Agent 根据用户意图自动选择
+
+### Changed
+- 检索入口从 `index → topics → ...` 改为 `overview → index → topics → ...`
+- Digest Step 1 Analysis 新增优先读取 purpose.md
+- Digest Step 2 Generation 新增第 6 步更新 overview.md
+
+---
+
 ## [v1.5.1] - 2026-05-11
 
 ### Fixed

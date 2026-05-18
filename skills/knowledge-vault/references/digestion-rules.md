@@ -41,9 +41,9 @@ from the same episode):
 3. If a raw file's `(date, source_id)` pair is in this set, mark as `DUPE`
 
 This handles cases like:
-- `科技前哨_2026-04-27_AI繁荣...md` (preprocessed)
-- `2026-04-27_keji_qianshao_raw.md` (raw transcript)
-Both share date `2026-04-27` and source `keji-qianshao`, so if either has been
+- `news_source_2026-04-27_AI繁荣...md` (preprocessed)
+- `2026-04-27_news_source_raw.md` (raw transcript)
+Both share date `2026-04-27` and source `news-source`, so if either has been
 digested, both are marked as covered.
 
 ### Layer 3: Fuzzy prefix match
@@ -74,9 +74,9 @@ When a single piece of content exists in multiple formats (e.g., preprocessed
 summary + raw ASR transcript), follow this priority for the summary's `source`
 field:
 
-1. **Preprocessed summary** (e.g., `科技前哨_2026-04-27_AI繁荣...md`) — preferred
+1. **Preprocessed summary** (e.g., `news_source_2026-04-27_AI繁荣...md`) — preferred
    because it's more readable and structured
-2. **Raw ASR transcript** (e.g., `2026-04-27_keji_qianshao_raw.md`) — use only
+2. **Raw ASR transcript** (e.g., `2026-04-27_news_source_raw.md`) — use only
    when no preprocessed version exists
 
 Rationale: clicking `source` in Obsidian should lead to the most readable version
@@ -110,9 +110,12 @@ Before generating any wiki content, analyze the source document in the context
 of the existing knowledge base.
 
 **Inputs to gather:**
-1. The raw file content (with ASR corrections applied if applicable)
-2. `knowledge/index.md` — current content catalog
-3. Any existing concept cards or topic pages that seem related (found via index)
+1. `purpose.md` (if exists in vault root) — defines knowledge base goals and scope.
+   Read this BEFORE the raw file. It tells you what this knowledge base cares about,
+   helping you prioritize which concepts and themes to emphasize.
+2. The raw file content (with ASR corrections applied if applicable)
+3. `knowledge/index.md` — current content catalog
+4. Any existing concept cards or topic pages that seem related (found via index)
 
 **Analysis output (internal, not written to files):**
 
@@ -165,6 +168,9 @@ connects to existing knowledge — the output is properly structured wiki conten
 3. Topic pages (new or updated)
 4. Index update
 5. Report contradictions to user
+6. Update overview.md — write or update `knowledge/overview.md` reflecting
+   all content digested so far (including this session). If it doesn't exist,
+   create it using `templates/tpl-overview.md`.
 
 **Key principle:** Every generated page should reflect awareness of existing
 knowledge. A concept card updated with a new source should integrate the new

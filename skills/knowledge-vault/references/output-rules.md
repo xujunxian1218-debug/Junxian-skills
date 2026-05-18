@@ -7,9 +7,14 @@ Rules for the Output phase — consuming knowledge from the vault.
 
 ## Retrieval Strategy
 
-Core principle: **index is the entry point, not the destination.**
+Core principle: **overview is the map, index is the directory.**
 
 ```
+Step 0: Check purpose and overview
+  → If purpose.md exists: understand scope boundaries
+  → If knowledge/overview.md exists: get narrative overview of entire KB
+  → This helps determine how deep to go and where to focus
+
 Step 1: Read index.md
   → Locate relevant topics (topic navigation table)
   → Locate relevant concepts (concept index table)
@@ -31,8 +36,26 @@ Step 5: Synthesize
   → Cross-source comparison, synthesis, identify contradictions or gaps
 ```
 
-Not every request needs all 5 steps. Quick Q&A may only need steps 1-3;
-deep exploration needs the full traversal.
+Not every request needs all 5 steps. Use the Retrieval Depth Strategy below
+to choose the right level.
+
+---
+
+## Retrieval Depth Strategy
+
+Not every question needs the same depth of retrieval. Use the user's intent
+to choose the appropriate level:
+
+| Level | Trigger examples | Files to read | Approx. count |
+|-------|-----------------|---------------|---------------|
+| Shallow | "XX 是什么", "XX 的定义", factual lookup | overview + index + 1-2 concept cards | ~5 |
+| Medium | "帮我梳理 XX", "XX 的完整脉络", topic exploration | + topic pages + related concepts + 2-3 summaries | ~10 |
+| Deep | "XX 和 YY 的关系", "学习 XX 的路径", cross-domain | + multiple topics + summaries + raw files | ~20 |
+
+**Decision rules:**
+- If unsure, start at medium depth. After initial retrieval, decide whether to go deeper.
+- Shallow answers that feel incomplete should be escalated to medium.
+- Always cite sources and mark knowledge boundaries.
 
 ---
 

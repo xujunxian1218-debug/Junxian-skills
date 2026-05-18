@@ -271,6 +271,6 @@ outputs/
 
 ## 版本
 
-当前版本：v1.5.1 — 详见 CHANGELOG.md
+当前版本：v1.6.1 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。

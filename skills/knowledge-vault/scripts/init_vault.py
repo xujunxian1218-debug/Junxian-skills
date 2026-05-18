@@ -242,6 +242,19 @@ def init_vault(vault_path: Path) -> None:
         print(f"  [警告] 模板源目录不存在: {TEMPLATES_SRC}")
         print(f"  请确保 skill 的 templates/ 目录完整")
 
+    # 2.5 复制 purpose.md 到 vault 根目录
+    purpose_src = TEMPLATES_SRC / "tpl-purpose.md"
+    purpose_dst = vault / "purpose.md"
+    if purpose_dst.exists():
+        print("  [已存在] purpose.md（用户已填写，不覆盖）")
+    elif purpose_src.exists():
+        content = purpose_src.read_text(encoding="utf-8")
+        content = content.replace("{{date:YYYY-MM-DD}}", date.today().isoformat())
+        purpose_dst.write_text(content, encoding="utf-8")
+        print("  [创建] purpose.md — 请编辑此文件定义知识库目标")
+    else:
+        print("  [跳过] tpl-purpose.md 模板不存在")
+
     # 3. 生成 index.md
     print("\n--- 生成索引文件 ---")
     index_path = vault / "knowledge" / "index.md"
@@ -262,15 +275,29 @@ def init_vault(vault_path: Path) -> None:
         dashboard_path.write_text(DASHBOARD_MD, encoding="utf-8")
         print("  [创建] knowledge/dashboard.md")
 
+    # 4.5 创建空 overview.md
+    overview_src = TEMPLATES_SRC / "tpl-overview.md"
+    overview_dst = vault / "knowledge" / "overview.md"
+    if overview_dst.exists():
+        print("  [已存在] knowledge/overview.md")
+    elif overview_src.exists():
+        content = overview_src.read_text(encoding="utf-8")
+        content = content.replace("{{date:YYYY-MM-DD}}", date.today().isoformat())
+        overview_dst.write_text(content, encoding="utf-8")
+        print("  [创建] knowledge/overview.md")
+    else:
+        print("  [跳过] tpl-overview.md 模板不存在")
+
     # 5. 环境检查
     check_env()
 
     print("\n" + "=" * 50)
     print("Vault 初始化完成！")
     print(f"\n下一步:")
-    print(f"  1. 将文件放入 {vault}/raw/ 或指定文件摄取")
-    print(f"  2. 运行摄取: python {SCRIPT_DIR / 'ingest.py'} --auto --vault {vault}")
-    print(f"  3. 让 Claude 执行消化流程")
+    print(f"  1. 编辑 {vault}/purpose.md 定义知识库目标和研究范围")
+    print(f"  2. 将文件放入 {vault}/raw/ 或指定文件摄取")
+    print(f"  3. 运行摄取: python {SCRIPT_DIR / 'ingest.py'} --auto --vault {vault}")
+    print(f"  4. 让 Claude 执行消化流程")
 
 
 def main():

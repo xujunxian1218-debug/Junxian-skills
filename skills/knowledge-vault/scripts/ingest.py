@@ -68,6 +68,8 @@ def get_output_path(src_file: Path, raw_dir: Path, suffix: str = "") -> Path:
 
 def sanitize_filename(name: str) -> str:
     """去掉文件名中的不安全字符，截断到合理长度"""
+    # 移除 Unicode 引号（中文弯引号、排版引号），防止 Windows Bash 路径解析失败
+    name = name.translate(str.maketrans({"“": "", "”": "", "‘": "", "’": ""}))
     name = re.sub(r'[\\/:*?"<>|#%^&$!`\'=~]', "", name)
     name = name.strip(". ")
     if len(name) > 80:
@@ -188,7 +190,7 @@ def transcribe_audio(audio_path: Path) -> str:
         beam_size=5,
         vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500),
-        initial_prompt="科技前哨 AI 人工智能 芯片 字节跳动 OpenAI Anthropic "
+        initial_prompt="AI 人工智能 芯片 字节跳动 OpenAI Anthropic "
                        "Musk Altman 深度学习 量子计算 自动驾驶 生成式 "
                        "Transformer GPT Claude DeepSeek Meta Google",
     )

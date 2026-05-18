@@ -23,7 +23,8 @@ SKIP_KEYWORDS = ["manifest", "metadata", "index", ".git", "__pycache__"]
 # ── 来源标识映射（预处理格式 ↔ raw 转写格式共用同一来源标识） ──
 # 键为文件名中能识别的来源标记，值为统一来源 ID
 SOURCE_PATTERNS = [
-    (re.compile(r"科技前哨|keji[_-]?qianshao", re.I), "keji-qianshao"),
+    # 示例：替换为你自己的来源标识规则
+    # (re.compile(r"your_source|source[_-]?pattern", re.I), "source-id"),
 ]
 
 # ── 日期提取正则 ──
