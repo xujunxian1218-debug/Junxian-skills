@@ -41,9 +41,9 @@ from the same episode):
 3. If a raw file's `(date, source_id)` pair is in this set, mark as `DUPE`
 
 This handles cases like:
-- `news_source_2026-04-27_AI繁荣...md` (preprocessed)
-- `2026-04-27_news_source_raw.md` (raw transcript)
-Both share date `2026-04-27` and source `news-source`, so if either has been
+- `newsletter_2026-04-27_AI-summary...md` (preprocessed)
+- `2026-04-27_podcast_raw.md` (raw transcript)
+Both share date `2026-04-27` and source `podcast`, so if either has been
 digested, both are marked as covered.
 
 ### Layer 3: Fuzzy prefix match
@@ -74,9 +74,9 @@ When a single piece of content exists in multiple formats (e.g., preprocessed
 summary + raw ASR transcript), follow this priority for the summary's `source`
 field:
 
-1. **Preprocessed summary** (e.g., `news_source_2026-04-27_AI繁荣...md`) — preferred
+1. **Preprocessed summary** (e.g., `newsletter_2026-04-27_AI-summary...md`) — preferred
    because it's more readable and structured
-2. **Raw ASR transcript** (e.g., `2026-04-27_news_source_raw.md`) — use only
+2. **Raw ASR transcript** (e.g., `2026-04-27_podcast_raw.md`) — use only
    when no preprocessed version exists
 
 Rationale: clicking `source` in Obsidian should lead to the most readable version

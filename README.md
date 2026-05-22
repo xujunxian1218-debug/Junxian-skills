@@ -24,6 +24,11 @@ cp -r skills/knowledge-vault  <你的项目>/.claude/skills/
 # 2. 安装依赖
 pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
 ```
+```powershell
+# PowerShell
+Copy-Item -Recurse skills/knowledge-vault <你的项目>\.claude\skills\
+pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
+```
 
 然后告诉你的 Agent：
 
@@ -48,6 +53,12 @@ cp -r skills/<skill-name>  <你的项目>/.claude/skills/
 
 # 全局（对所有项目生效）
 cp -r skills/<skill-name>  ~/.claude/skills/
+```
+```powershell
+# PowerShell — 项目级
+Copy-Item -Recurse skills/<skill-name> <你的项目>\.claude\skills\
+# PowerShell — 全局
+Copy-Item -Recurse skills/<skill-name> "$env:USERPROFILE\.claude\skills\"
 ```
 
 ### 兼容性

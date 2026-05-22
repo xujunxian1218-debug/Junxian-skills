@@ -13,6 +13,11 @@ cp -r knowledge-vault  <你的项目路径>/.claude/skills/
 # 2. 安装 Python 依赖（处理 PDF/DOCX 等格式需要）
 pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
 ```
+```powershell
+# PowerShell 替代写法
+Copy-Item -Recurse knowledge-vault <你的项目路径>\.claude\skills\
+pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
+```
 
 然后在你的 Coding Agent 中，依次说：
 
@@ -62,6 +67,13 @@ cp -r knowledge-vault  <你的项目>/.claude/skills/
 
 # 全局安装（对所有项目生效）
 cp -r knowledge-vault  ~/.claude/skills/
+```
+```powershell
+# PowerShell 替代写法
+# 项目级安装
+Copy-Item -Recurse knowledge-vault <你的项目>\.claude\skills\
+# 全局安装
+Copy-Item -Recurse knowledge-vault "$env:USERPROFILE\.claude\skills\"
 ```
 
 ### 2. 安装 Python 依赖
@@ -247,6 +259,26 @@ outputs/
 
 ---
 
+## Compatibility
+
+**Requirements:**
+- Python 3.10+
+- Coding Agent（Claude Code、Cursor、Windsurf 等）
+- 可选：ffmpeg（音视频转写）
+
+**Tested on:**
+- Windows 11
+
+**Not fully tested on:**
+- macOS
+- Linux
+
+**Known Limitations:**
+- 脚本中的 shebang 行（`#!/usr/bin/env python3`）在 Windows 上无效，需直接用 `python scripts/xxx.py` 调用
+- 路径参数在 Windows 下支持 `/` 和 `\` 两种分隔符（脚本内部使用 `pathlib`）
+
+---
+
 ## 注意事项
 
 - `notes/` 是你的个人空间，Agent 不会修改
@@ -271,6 +303,6 @@ outputs/
 
 ## 版本
 
-当前版本：v1.6.1 — 详见 CHANGELOG.md
+当前版本：v1.6.2 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。

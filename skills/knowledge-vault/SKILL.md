@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.6.1
+version: 1.6.2
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"knowledge vault"、"second brain"、
@@ -8,7 +8,6 @@ description: |
   文件驱动个人知识管理系统：Ingest → Digest → Output → Audit 四阶段循环，
   支持文档转 Markdown、结构化摘要、概念卡、主题页，兼容 Obsidian 双链
   EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检"
-author: Junxian
 tags: [tools, knowledge-management, obsidian, markdown]
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
@@ -181,7 +180,7 @@ The digestion is a **two-step process**: analyze first, then generate.
 Before any analysis, mentally correct the transcript text. ASR output
 contains homophone errors, mistranscribed proper nouns, and misaligned syllables
 that rule-based correction cannot fix. Use context to identify and correct errors
-such as: "前哨科技"→"科技前沿", "C dancy"→"Seedance", "Wales米斯"→"Will Smith",
+such as: "前哨科技"→"前沿科技", "C dancy"→"Seedance", "威尔史密斯"→"Will Smith",
 "锦细量"→"信息量", etc. Do NOT modify the raw file — corrections are applied in
 your understanding only, and reflected in the generated summary/concepts/topics.
 
@@ -410,10 +409,34 @@ If digestion is interrupted (session ends, script fails, user aborts):
 
 When the user says "同步 skill" / "sync skill" / "更新 knowledge-vault":
 
-1. Copy skill files to target project's `.claude/skills/knowledge-vault/`:
+### Sync to personal project
+
+1. Copy all skill files to `<ajknowledge-path>/.claude/skills/knowledge-vault/`:
    ```bash
+   # Bash / macOS / Linux
    cp -r scripts/ references/ templates/ SKILL.md README.md CHANGELOG.md \
-     <your-project>/.claude/skills/knowledge-vault/
+     <ajknowledge-path>/.claude/skills/knowledge-vault/
+   ```
+   ```powershell
+   # PowerShell
+   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<ajknowledge-path>\.claude\skills\knowledge-vault\"
    ```
 2. Verify: `SKILL.md` frontmatter `version` matches `CHANGELOG.md` first version header
 3. Report synced files and version
+
+### Sync to open-source project (Junxian-skills)
+
+1. Copy skill files (excluding CLAUDE.md, _dev-plan.md, test-prompts.json, docs/):
+   ```bash
+   # Bash / macOS / Linux
+   cp -r scripts/ references/ templates/ SKILL.md README.md CHANGELOG.md \
+     <junxian-path>/skills/knowledge-vault/
+   ```
+   ```powershell
+   # PowerShell
+   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<junxian-path>\skills\knowledge-vault\"
+   ```
+2. Simplify `CHANGELOG.md` to Added/Changed/Fixed format (remove 变更背景/决策上下文/具体改动/遗留问题/测试结果)
+3. Modify `SKILL.md` frontmatter: `author` → `Junxian`, remove `source`/`source_refs`/`created`/`updated`
+4. Verify: `SKILL.md` frontmatter `version` matches `CHANGELOG.md` first version header
+5. Report synced files and version
