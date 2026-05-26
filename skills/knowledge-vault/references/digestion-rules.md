@@ -12,6 +12,7 @@ on new raw files.
 5. [Naming Conventions](#naming-conventions)
 6. [Template Fields](#template-fields)
 7. [Index Update Rules](#index-update-rules)
+8. [Review Output Format](#review-output-format)
 
 ---
 
@@ -41,9 +42,9 @@ from the same episode):
 3. If a raw file's `(date, source_id)` pair is in this set, mark as `DUPE`
 
 This handles cases like:
-- `newsletter_2026-04-27_AI-summary...md` (preprocessed)
-- `2026-04-27_podcast_raw.md` (raw transcript)
-Both share date `2026-04-27` and source `podcast`, so if either has been
+- `科技前哨_2026-04-27_AI繁荣...md` (preprocessed)
+- `2026-04-27_keji_qianshao_raw.md` (raw transcript)
+Both share date `2026-04-27` and source `keji-qianshao`, so if either has been
 digested, both are marked as covered.
 
 ### Layer 3: Fuzzy prefix match
@@ -57,9 +58,14 @@ any layer.
 | Category | Meaning | Action |
 |----------|---------|--------|
 | `NEW` | Genuinely undigested content | Digest these files |
+| `UPDATED` | Previously digested but file content changed (SHA256 differs) | Show in Review; re-digesting overwrites existing summary |
 | `DUPE` | Already covered by another format | Skip |
 | `SKIP` | Metadata/manifest/non-content files | Skip |
 | `MANUAL` | Cannot auto-determine | Ask user |
+
+The script detects `UPDATED` files by comparing SHA256 hashes stored in
+`.llm-wiki-cache/hashes.json`. A file is marked `UPDATED` when its normalized
+name matches an existing summary (Layer 1) but its hash differs from the cache.
 
 ### File exclusion rules
 
@@ -74,9 +80,9 @@ When a single piece of content exists in multiple formats (e.g., preprocessed
 summary + raw ASR transcript), follow this priority for the summary's `source`
 field:
 
-1. **Preprocessed summary** (e.g., `newsletter_2026-04-27_AI-summary...md`) — preferred
+1. **Preprocessed summary** (e.g., `科技前哨_2026-04-27_AI繁荣...md`) — preferred
    because it's more readable and structured
-2. **Raw ASR transcript** (e.g., `2026-04-27_podcast_raw.md`) — use only
+2. **Raw ASR transcript** (e.g., `2026-04-27_keji_qianshao_raw.md`) — use only
    when no preprocessed version exists
 
 Rationale: clicking `source` in Obsidian should lead to the most readable version
@@ -488,3 +494,89 @@ The "摘要文件" column **must** use wikilinks: `[[xxx-摘要-xxx]]`.
   (create a new category heading if needed)
 - Updated topic: refresh the "涉及摘要数" in its row
 - New summary: add row to the timeline index in the correct month section
+
+---
+
+## Review Output Format
+
+After all files in a Digest session have been processed (Step 2 Generation +
+post-digestion self-check + overview update), output a **Digest Review** to
+the user and write it to a file.
+
+### When to output
+
+The Review is the **final step** of every Digest session, after self-check.
+It applies to all Digest sessions, regardless of how many files were processed.
+
+### Review content
+
+The Review covers these dimensions:
+
+1. **Contradictions** — conflicts found between new and existing wiki content
+   during Analysis. Report the specific claim and which pages disagree.
+   Severity: `definite` | `possible` | `nuance`.
+
+2. **Duplicates** — near-duplicate information detected across summaries or
+   concept cards. Flag the overlapping content and suggest whether to merge.
+
+3. **Missing pages** — concepts or topics mentioned in the source but not
+   created because they were peripheral. List them for the user to decide
+   if they want to add them later.
+
+4. **UPDATED files** — if `check_undigested.py` reported any `UPDATED` files,
+   list them here with a note that re-digesting will overwrite the existing
+   summary. The user decides whether to re-digest.
+
+5. **Suggestions** — any actionable improvements to the knowledge base
+   structure (e.g., splitting a concept, merging topics, adding cross-references).
+
+If none of the above apply, the Review states "本次消化未发现需要关注的问题。"
+
+### Output format
+
+**Dialog output** — show to user in the conversation immediately.
+
+**File output** — write to `knowledge/digest-review-{YYYY-MM-DD}.md`:
+
+```markdown
+---
+type: digest-review
+date: YYYY-MM-DD
+files_processed: N
+---
+
+# Digest Review — {YYYY-MM-DD}
+
+## 处理概览
+
+本次消化处理了 {N} 篇文件，生成/更新了 {M} 篇摘要、{C} 张概念卡、{T} 个主题页。
+
+## 矛盾与冲突
+
+> 逐条列出新发现与已有知识之间的矛盾。无矛盾时写"未发现矛盾"。
+
+## 重复内容
+
+> 列出跨摘要的近重复内容。无重复时写"未发现重复"。
+
+## 待补充页面
+
+> 列出源文件中提及但未创建的概念或主题。无遗漏时写"无需补充"。
+
+## 内容变更文件
+
+> 列出 UPDATED 文件。无变更时写"无"。
+
+## 改进建议
+
+> 对知识库结构的改进建议。无建议时写"无"。
+```
+
+### Design notes
+
+- The Review file is a **historical record**, not an action queue. Users are
+  not expected to resolve every item. Items that remain unresolved will be
+  re-detected in the next Digest session's Analysis step.
+- The file also serves as input for the next Digest Analysis — the Agent can
+  read the most recent review to see what issues were flagged previously.
+- Do NOT auto-execute any fixes suggested in the Review.

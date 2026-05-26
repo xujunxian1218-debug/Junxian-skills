@@ -30,6 +30,7 @@ DIRS = [
     "notes",
     "outputs",
     "templates",
+    ".llm-wiki-cache",
 ]
 
 

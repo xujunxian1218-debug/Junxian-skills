@@ -2,8 +2,8 @@
 """
 Knowledge Vault 未消化文件检测脚本
 
-扫描 raw/ 和 knowledge/summaries/，通过三层递进匹配识别真正未消化的文件。
-输出分 4 类：NEW（新内容）、DUPE（双格式已覆盖）、SKIP（不可消化）、MANUAL（需人工确认）。
+扫描 raw/ 和 knowledge/summaries/，通过三层递进匹配 + SHA256 内容哈希识别真正未消化的文件。
+输出分 5 类：NEW（新内容）、UPDATED（内容已变更）、DUPE（双格式已覆盖）、SKIP（不可消化）、MANUAL（需人工确认）。
 
 用法:
   python check_undigested.py --vault /path/to/vault
@@ -11,6 +11,7 @@ Knowledge Vault 未消化文件检测脚本
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -23,7 +24,7 @@ SKIP_KEYWORDS = ["manifest", "metadata", "index", ".git", "__pycache__"]
 # ── 来源标识映射（预处理格式 ↔ raw 转写格式共用同一来源标识） ──
 # 键为文件名中能识别的来源标记，值为统一来源 ID
 SOURCE_PATTERNS = [
-    # (re.compile(r"your_source_name|source_id", re.I), "source-id"),
+    (re.compile(r"科技前哨|keji[_-]?qianshao", re.I), "keji-qianshao"),
 ]
 
 # ── 日期提取正则 ──
@@ -46,6 +47,43 @@ CHAR_NORMALIZE_TABLE = str.maketrans(
         "…": "",   # …
     }
 )
+
+
+# ── SHA256 哈希缓存 ──
+HASH_CACHE_DIR = ".llm-wiki-cache"
+HASH_CACHE_FILE = "hashes.json"
+
+
+def compute_file_hash(filepath: Path) -> str:
+    """Compute SHA256 hash of a file."""
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_hash_cache(vault_root: Path) -> dict[str, str]:
+    """Load cached hashes from .llm-wiki-cache/hashes.json. Returns {relative_path: sha256}."""
+    cache_path = vault_root / HASH_CACHE_DIR / HASH_CACHE_FILE
+    if not cache_path.exists():
+        return {}
+    try:
+        text = cache_path.read_text(encoding="utf-8")
+        return json.loads(text)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def save_hash_cache(vault_root: Path, hashes: dict[str, str]) -> None:
+    """Save hash cache to .llm-wiki-cache/hashes.json."""
+    cache_dir = vault_root / HASH_CACHE_DIR
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / HASH_CACHE_FILE
+    cache_path.write_text(
+        json.dumps(hashes, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def normalize_filename(name: str) -> str:
@@ -150,7 +188,7 @@ def collect_raw_files(raw_dir: Path) -> list[Path]:
 
 
 def check_undigested(vault_root: Path) -> dict:
-    """Main dedup logic. Returns categorized results."""
+    """Main dedup logic with SHA256 hash change detection. Returns categorized results."""
 
     raw_dir = vault_root / "raw"
     summaries_dir = vault_root / "knowledge" / "summaries"
@@ -159,6 +197,10 @@ def check_undigested(vault_root: Path) -> dict:
     summary_sources = read_summary_sources(summaries_dir)
     summary_details = read_summary_source_details(summaries_dir)
 
+    # Load hash cache
+    hash_cache = load_hash_cache(vault_root)
+    current_hashes: dict[str, str] = {}
+
     # Build date+source index from summaries for cross-matching
     digested_date_source = set()
     for d in summary_details:
@@ -166,15 +208,20 @@ def check_undigested(vault_root: Path) -> dict:
             digested_date_source.add((d["source_date"], d["source_id"]))
 
     results = {
-        "new": [],      # Truly undigested
-        "dupe": [],     # Already covered by another format
-        "skip": [],     # Metadata / non-content files
-        "manual": [],   # Needs human confirmation
+        "new": [],       # Truly undigested
+        "updated": [],   # Previously digested but content changed
+        "dupe": [],      # Already covered by another format
+        "skip": [],      # Metadata / non-content files
+        "manual": [],    # Needs human confirmation
     }
 
     for raw_file in raw_files:
         rel_path = str(raw_file.relative_to(vault_root))
         stem = raw_file.stem
+
+        # Compute current hash
+        current_hash = compute_file_hash(raw_file)
+        current_hashes[rel_path] = current_hash
 
         # Check SKIP first
         if is_skippable(stem):
@@ -189,7 +236,16 @@ def check_undigested(vault_root: Path) -> dict:
 
         # Layer 1: Exact match against summary sources
         if norm_stem in summary_sources:
-            continue  # Already digested, skip silently
+            # Previously digested — check if content changed
+            cached_hash = hash_cache.get(rel_path)
+            if cached_hash and cached_hash != current_hash:
+                results["updated"].append({
+                    "file": rel_path,
+                    "name": stem,
+                    "reason": "文件内容已变更，重新消化会覆盖已有摘要",
+                })
+            # If hash matches or no cache: unchanged, skip silently
+            continue
 
         # Layer 2: Date + source cross-match (for multi-format content)
         raw_date = extract_date(stem)
@@ -270,17 +326,21 @@ def check_undigested(vault_root: Path) -> dict:
                 "reason": "无法自动判定，需人工确认",
             })
 
+    # Save updated hash cache
+    save_hash_cache(vault_root, current_hashes)
+
     return results
 
 
 def print_report(results: dict, vault_root: Path):
     """Print human-readable report."""
     new = results["new"]
+    updated = results["updated"]
     dupe = results["dupe"]
     skip = results["skip"]
     manual = results["manual"]
 
-    total = len(new) + len(dupe) + len(skip) + len(manual)
+    total = len(new) + len(updated) + len(dupe) + len(skip) + len(manual)
     raw_count = len(list((vault_root / "raw").rglob("*.md")))
     # Exclude images and cache
     raw_count = len(collect_raw_files(vault_root / "raw"))
@@ -294,6 +354,13 @@ def print_report(results: dict, vault_root: Path):
     print(f"摘要数: {summary_count}")
     print(f"本次检测文件数: {total}")
     print()
+
+    if updated:
+        print(f"── UPDATED（内容已变更）: {len(updated)} 篇 ──")
+        for item in updated:
+            print(f"  {item['file']}")
+            print(f"    原因: {item['reason']}")
+        print()
 
     if skip:
         print(f"── SKIP（不可消化）: {len(skip)} 篇 ──")
@@ -326,8 +393,13 @@ def print_report(results: dict, vault_root: Path):
 
     print()
     print("=" * 60)
+    parts = []
     if new:
-        print(f"结论: 本次需要消化 {len(new)} 篇新内容")
+        parts.append(f"{len(new)} 篇新内容")
+    if updated:
+        parts.append(f"{len(updated)} 篇内容已变更")
+    if parts:
+        print(f"结论: 本次需要处理 {'，'.join(parts)}")
     else:
         print("结论: 所有内容已消化完毕")
     print("=" * 60)

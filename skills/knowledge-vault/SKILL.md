@@ -1,13 +1,14 @@
 ---
 name: knowledge-vault
-version: 1.6.2
+version: 1.8.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
-  "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"knowledge vault"、"second brain"、
-  "digest"、"ingest" 时触发
-  文件驱动个人知识管理系统：Ingest → Digest → Output → Audit 四阶段循环，
-  支持文档转 Markdown、结构化摘要、概念卡、主题页，兼容 Obsidian 双链
-  EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检"
+  "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
+  "knowledge vault"、"second brain"、"digest"、"ingest" 时触发
+  文件驱动个人知识管理系统：Ingest → Digest → Output → Audit → Delete 五阶段循环，
+  支持文档转 Markdown、结构化摘要、概念卡、主题页、级联删除，兼容 Obsidian 双链
+  EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检" / "从知识库删除这个文件"
+author: Junxian
 tags: [tools, knowledge-management, obsidian, markdown]
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
@@ -22,7 +23,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.6.1. If encountering issues already fixed in recent versions, check
+> **Version**: 1.8.0. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
@@ -32,9 +33,10 @@ Match user intent to the correct phase before executing:
 |-------------|-------|--------|
 | "初始化知识库" / first-time setup | Phase 1: Initialize | Run `init_vault.py`，提示用户编辑 purpose.md |
 | "摄取文件" / convert documents / add to vault | Phase 2: Ingest | Run `ingest.py`, then suggest Digest |
-| "消化知识" / process new content / summarize | Phase 3: Digest | Pre-checks → Digest → Self-check |
+| "消化知识" / process new content / summarize | Phase 3: Digest | Pre-checks → Digest → Self-check → Review |
 | Ask a question / explore a topic / generate content | Phase 4: Output | Layered retrieval from index |
 | "知识巡检" / check health / audit | Phase 5: Audit | Run 9-point checklist |
+| "删除文件" / "从知识库移除" | Phase 6: Delete | Cascade delete with user confirmation |
 | Multiple files given directly (no vault yet) | Phase 1 → 2 → 3 | Initialize → Ingest → Digest |
 
 When in doubt, ask the user which operation they want.
@@ -55,7 +57,8 @@ When in doubt, ask the user which operation they want.
 │   └── dashboard.md        ← Obsidian Dataview dashboard
 ├── notes/                  ← Personal notes (AI must NOT touch)
 ├── templates/              ← Obsidian templates
-└── outputs/                ← High-value output artifacts
+├── outputs/                ← High-value output artifacts
+└── .llm-wiki-cache/        ← SHA256 hash cache (auto-managed)
 ```
 
 ## Dependencies
@@ -153,8 +156,9 @@ for detailed rules on deduplication, image processing, and naming.
    ```bash
    python <skill-path>/scripts/check_undigested.py --vault <vault-path>
    ```
-   The script outputs 4 categories:
+   The script outputs 5 categories:
    - `NEW` — genuinely undigested content (digest these)
+   - `UPDATED` — previously digested but file content changed via SHA256 hash (report to user)
    - `DUPE` — already covered by another format of the same content (skip)
    - `SKIP` — metadata/manifest files that aren't knowledge content (skip)
    - `MANUAL` — cannot auto-determine, needs human confirmation
@@ -180,7 +184,7 @@ The digestion is a **two-step process**: analyze first, then generate.
 Before any analysis, mentally correct the transcript text. ASR output
 contains homophone errors, mistranscribed proper nouns, and misaligned syllables
 that rule-based correction cannot fix. Use context to identify and correct errors
-such as: "前哨科技"→"前沿科技", "C dancy"→"Seedance", "威尔史密斯"→"Will Smith",
+such as: "前哨科技"→"科技前哨", "C dancy"→"Seedance", "Wales米斯"→"Will Smith",
 "锦细量"→"信息量", etc. Do NOT modify the raw file — corrections are applied in
 your understanding only, and reflected in the generated summary/concepts/topics.
 
@@ -291,6 +295,20 @@ After digesting all files, verify every item:
    `[[...]]` links use the full slug format `[[xxx-概念]]`. Bare concept names
    (e.g. `[[Embedding 与 RAG]]` without `-概念` suffix) must be fixed immediately.
 
+### Digest Review (mandatory, after self-check)
+
+After self-check passes, output a review summarizing this digestion session:
+
+1. Show the review to the user in the conversation.
+2. Write to `knowledge/digest-review-{YYYY-MM-DD}.md` as a historical record.
+3. Content covers: contradictions, duplicates, missing pages, UPDATED files
+   (from check_undigested.py report), and improvement suggestions.
+4. If no issues found, state "本次消化未发现需要关注的问题。"
+5. **Read `references/digestion-rules.md` → Review Output Format** for the
+   full output template and design notes.
+6. The review file also serves as input for the next Digest Analysis — the
+   Agent can read the most recent review to see what issues were flagged.
+
 ## Phase 4: Output
 
 Consume knowledge from the vault through 6 consumption scenarios.
@@ -342,6 +360,40 @@ for the full 9-point checklist:
 
 Output: `knowledge/audit-report-YYYY-MM-DD.md` — **report only, never auto-fix**.
 
+## Phase 6: Delete
+
+Remove a raw source file and cascade-clean all dependent knowledge artifacts.
+**Read `references/delete-rules.md`** for the complete flow and edge cases.
+
+### Core Principle
+
+Agent generates a delete plan showing all affected files. User confirms before
+any deletion occurs. All deletions are permanent (no archive, no undo).
+
+### Flow
+
+1. **Locate impact** — scan summaries, concept cards, topic pages, index.md
+   for references to the target raw file
+2. **Generate plan** — show every file to be deleted, modified, or cascade-deleted;
+   wait for user confirmation
+3. **Execute deletion** — delete in dependency order (summary → concept cards →
+   topic pages → raw file)
+4. **Fix broken links** — remove wikilinks to deleted files from remaining pages
+5. **Update index + overview** — remove entries, refresh statistics
+6. **Output report** — summarize all operations performed
+
+### Cascade Rules
+
+- Raw file deleted → corresponding summary deleted
+- Summary deleted → if concept card has no other sources → concept card deleted
+- Summary deleted → if topic page has no other summaries → topic page deleted
+- Multi-source concept cards and multi-summary topic pages → only remove the reference
+
+### User Confirmation Required
+
+**Never delete files without user confirmation — always show the plan first.**
+User can override: "只删 raw 和摘要" to skip cascade operations.
+
 ## Naming Conventions
 
 | Type | Pattern | Example |
@@ -373,10 +425,11 @@ If digestion is interrupted (session ends, script fails, user aborts):
 
 ## Prohibitions
 
-- Never delete or overwrite files in `raw/`
+- Never delete or overwrite files in `raw/` (except via Phase 6: Delete with user confirmation)
 - Never modify concept card core definitions without user confirmation
-- Never auto-merge or delete topic pages
+- Never auto-merge or delete topic pages (except via Phase 6: Delete with user confirmation)
 - Never auto-execute fixes from audit reports
+- **Never delete files without user confirmation — always show the delete plan first**
 - **Never modify, overwrite, or delete anything in `notes/`**
 
 ## USE WHEN
@@ -385,6 +438,7 @@ If digestion is interrupted (session ends, script fails, user aborts):
 - 用户说"摄取文件"、"消化知识"、"消化新内容"、"整理文档"
 - 用户说"知识巡检"、"知识库审计"、"检查知识库健康度"
 - 用户说"帮我总结这篇文章"、"提取概念"、"生成主题页"
+- 用户说"删除文件"、"从知识库移除"、"删掉这个源文件"
 - 用户提到"knowledge vault"、"second brain"、"digest"、"ingest"
 - 用户想建立 Obsidian 兼容的个人知识库
 
@@ -401,15 +455,16 @@ If digestion is interrupted (session ends, script fails, user aborts):
 
 - "初始化知识库" → 运行 init_vault.py 创建目录结构和模板
 - "把这些 PDF 摄取到知识库" → 运行 ingest.py 转换文件为 Markdown
-- "消化知识库的新内容" → 执行完整 Digest 流程（去重→摘要→概念→主题→索引）
+- "消化知识库的新内容" → 执行完整 Digest 流程（去重→摘要→概念→主题→索引→Review）
 - "知识库里关于 AI 编程的内容" → 从 index.md 检索，沿 topic → concept → summary 路径回答
-- "跑一次知识巡检" → 执行 7 项检查，输出 audit-report
+- "跑一次知识巡检" → 执行 9 项检查，输出 audit-report
+- "从知识库删除这个文件" → 级联删除（摘要→概念卡→主题页→断链修复）
 
 ## Sync
 
 When the user says "同步 skill" / "sync skill" / "更新 knowledge-vault":
 
-### Sync to personal project
+### Sync to personal project (Ajknowledge)
 
 1. Copy all skill files to `<ajknowledge-path>/.claude/skills/knowledge-vault/`:
    ```bash

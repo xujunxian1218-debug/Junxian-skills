@@ -1,5 +1,33 @@
 # knowledge-vault Changelog
 
+## [v1.8.0] - 2026-05-26
+
+### Added
+- 级联删除流程（Phase 6: Delete）：删除 raw 文件时自动级联清理摘要、概念卡、主题页、断链
+- `references/delete-rules.md`：级联删除完整规则（6 步流程 + 级联规则 + 边界条件）
+- SKILL.md Phase Router 新增 Delete 行、Phase 6: Delete 章节、Prohibitions 更新
+- `_dev/` 目录约定：每个 skill 的开发过程文件存放位置（不分发）
+
+### Changed
+- Prohibitions 更新删除规则：允许 Phase 6 删除（需用户确认），新增确认要求
+- USE WHEN 和 Examples 新增删除相关触发词和示例
+
+---
+
+## [v1.7.0] - 2026-05-26
+
+### Added
+- Digest Review 输出：消化完成后输出矛盾、重复、缺失页面、UPDATED 文件、建议，保存到 `knowledge/digest-review-{date}.md`
+- SHA256 增量哈希：check_undigested.py 新增 `UPDATED` 分类（5 类输出），检测"文件名相同但内容已更新"
+- `references/digestion-rules.md` 新增 Review Output Format 章节
+- init_vault.py 新增 `.llm-wiki-cache/` 目录创建
+
+### Changed
+- check_undigested.py 输出从 4 类扩展至 5 类（新增 UPDATED）
+- Digest 流程新增"Digest Review"段落（self-check 之后执行）
+
+---
+
 ## [v1.6.2] - 2026-05-22
 
 ### Changed
