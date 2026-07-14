@@ -190,7 +190,7 @@ def transcribe_audio(audio_path: Path) -> str:
         beam_size=5,
         vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500),
-        initial_prompt="AI 人工智能 芯片 字节跳动 OpenAI Anthropic "
+        initial_prompt="科技前哨 AI 人工智能 芯片 字节跳动 OpenAI Anthropic "
                        "Musk Altman 深度学习 量子计算 自动驾驶 生成式 "
                        "Transformer GPT Claude DeepSeek Meta Google",
     )

@@ -416,8 +416,11 @@ in the properties panel. Do not use plain text paths — they won't be clickable
 2. **详细解释** — 2-3 paragraphs explaining core meaning, how it works, why it matters
 3. **相关来源** — Links to source summaries with contribution notes
 4. **与其他概念的关系** — Links to related concepts with relationship description
-   **强制规则**：此板块内所有概念引用的 wikilink 必须使用完整 slug 格式 `[[xxx-概念]]`，
-   禁止使用裸概念名（如 `[[Embedding 与 RAG]]` 应写为 `[[Embedding 与 RAG-概念]]`）。
+   **强制规则**：此板块内所有概念引用的 wikilink 必须使用完整 slug 格式 `[[xxx-概念]]`：
+   - 禁止裸概念名（如 `[[Embedding 与 RAG]]` 应写为 `[[Embedding 与 RAG-概念]]`）
+   - 禁止 `.md` 后缀（`[[xxx-概念]]` 不是 `[[xxx-概念.md]]`，区别于 frontmatter source 文件路径，per usage-log 2026-07-07）
+   - 禁止路径敏感字符 `/ \ :`（概念名含斜杠会断链，用紧凑写法或 alias，如 `[[WhatWhyHow vs Wow-概念|What/Why/How vs Wow]]`，per usage-log 2026-07-10）
+   以上 wikilink 规范由 `scripts/audit.py --check-cross-refs` 自动检测（见 SKILL.md self-check 第 7 项）。
 5. **💡 我的理解** — Personal understanding, analogies, supplements
 
 ### Topic page (tpl-topic.md)

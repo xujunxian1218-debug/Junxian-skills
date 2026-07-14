@@ -3,3 +3,6 @@ Thumbs.db
 *.tmp
 *.bak
 CLAUDE.md
+
+__pycache__/
+*.pyc

@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.8.0
+version: 1.9.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -8,15 +8,20 @@ description: |
   文件驱动个人知识管理系统：Ingest → Digest → Output → Audit → Delete 五阶段循环，
   支持文档转 Markdown、结构化摘要、概念卡、主题页、级联删除，兼容 Obsidian 双链
   EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检" / "从知识库删除这个文件"
-author: Junxian
+author: SkillVault
+source: synthesized
+source_refs:
+  - OpenClaw 自动生成
+created: 2026-04-16
+updated: 2026-05-18
 tags: [tools, knowledge-management, obsidian, markdown]
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
 
 # Knowledge Vault
 
-A file-first personal knowledge management system that follows a four-phase cycle:
-**Ingest → Digest → Output → Audit**.
+A file-first personal knowledge management system that follows a five-phase cycle:
+**Ingest → Digest → Output → Audit → Delete**.
 
 Every piece of content is a plain `.md` file. All conclusions trace back to original
 sources. Works with Obsidian for visualization but doesn't depend on it.
@@ -162,7 +167,13 @@ for detailed rules on deduplication, image processing, and naming.
    - `DUPE` — already covered by another format of the same content (skip)
    - `SKIP` — metadata/manifest files that aren't knowledge content (skip)
    - `MANUAL` — cannot auto-determine, needs human confirmation
-   Only digest files in the `NEW` category. Report all categories to the user.
+   Digest files in the `NEW` category. **If `MANUAL` is non-empty, manually verify
+   whether those files are genuinely new** (check date / whether summaries already
+   cover them) — do NOT stop just because `NEW=0`. Since v1.9.0, files matching no
+   summary are classified as `NEW` (previously fell into `MANUAL` when the filename
+   had no date — see usage-log 2026-06-28/07-06/07-10), so `MANUAL` should now be
+   rare. The conclusion line says "有 N 篇待人工确认" when MANUAL is non-empty.
+   Report all categories to the user.
 
 4. **Digest plan confirmation**: List all files to be digested and stop.
    Show the user: file count, filenames, and estimated scope (rough number of
@@ -288,12 +299,18 @@ After digesting all files, verify every item:
    use placeholder text, not omit the section.
 5. Statistics match actual file counts (concepts/, summaries/, topics/)
 6. Fix any non-wikilink entries immediately
-7. **Cross-reference validity**: scan all concept cards' "与其他概念的关系" section, extract every `[[xxx-概念]]` wikilink, and verify the target file exists in `knowledge/concepts/`. If missing, either create the concept card or remove the broken link. Report any broken links found and actions taken.
+7. **Cross-reference validity (scripted, replaces manual scan)**: Run
+   `py scripts/audit.py --vault <vault> --check-cross-refs`. The script scans ALL
+   concept cards' full-body wikilinks (not just "与其他概念的关系") and verifies
+   targets exist, also flagging format issues (`.md` suffix, path-sensitive chars).
+   From the report: fix broken links (create missing concept card or remove link)
+   and format violations. Do NOT manually scan files or run Grep on Windows
+   backslash paths — it silently misses matches (per usage-log 2026-07-10).
 8. **All numeric annotations in index.md**: scan every line in `index.md` that contains a number in a comment or annotation (patterns like `> ...N...` or `N 篇`/`N 张`/`N 个`). For each such number, verify it matches the actual file count in the corresponding directory. This covers header statistics, directory structure annotations, and any other inline counts. Fix any discrepancies immediately.
-9. **Concept card internal wikilink format**: for every concept card created or
-   updated this session, scan the "与其他概念的关系" section and verify all
-   `[[...]]` links use the full slug format `[[xxx-概念]]`. Bare concept names
-   (e.g. `[[Embedding 与 RAG]]` without `-概念` suffix) must be fixed immediately.
+9. **Concept card internal wikilink format**: covered by #7's `--check-cross-refs`
+   report (`.md` suffix, path-sensitive chars, and bare names whose targets don't
+   exist are all flagged). Ensure every issue in the #7 report is resolved — no
+   separate manual scan needed.
 
 ### Digest Review (mandatory, after self-check)
 
@@ -464,32 +481,32 @@ If digestion is interrupted (session ends, script fails, user aborts):
 
 When the user says "同步 skill" / "sync skill" / "更新 knowledge-vault":
 
-### Sync to personal project (Ajknowledge)
+### Sync to your usage project
 
-1. Copy all skill files to `<ajknowledge-path>/.claude/skills/knowledge-vault/`:
+1. Copy all skill files to `<your-project>/.claude/skills/knowledge-vault/`:
    ```bash
    # Bash / macOS / Linux
    cp -r scripts/ references/ templates/ SKILL.md README.md CHANGELOG.md \
-     <ajknowledge-path>/.claude/skills/knowledge-vault/
+     <your-project>/.claude/skills/knowledge-vault/
    ```
    ```powershell
    # PowerShell
-   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<ajknowledge-path>\.claude\skills\knowledge-vault\"
+   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<your-project>\.claude\skills\knowledge-vault\"
    ```
 2. Verify: `SKILL.md` frontmatter `version` matches `CHANGELOG.md` first version header
 3. Report synced files and version
 
-### Sync to open-source project (Junxian-skills)
+### Publish to your public skills repo
 
 1. Copy skill files (excluding CLAUDE.md, _dev-plan.md, test-prompts.json, docs/):
    ```bash
    # Bash / macOS / Linux
    cp -r scripts/ references/ templates/ SKILL.md README.md CHANGELOG.md \
-     <junxian-path>/skills/knowledge-vault/
+     <your-public-repo>/skills/knowledge-vault/
    ```
    ```powershell
    # PowerShell
-   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<junxian-path>\skills\knowledge-vault\"
+   Copy-Item -Recurse -Path scripts,references,templates,SKILL.md,README.md,CHANGELOG.md -Destination "<your-public-repo>\skills\knowledge-vault\"
    ```
 2. Simplify `CHANGELOG.md` to Added/Changed/Fixed format (remove 变更背景/决策上下文/具体改动/遗留问题/测试结果)
 3. Modify `SKILL.md` frontmatter: `author` → `Junxian`, remove `source`/`source_refs`/`created`/`updated`

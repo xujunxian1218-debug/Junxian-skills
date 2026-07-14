@@ -1,5 +1,24 @@
 # knowledge-vault Changelog
 
+## [v1.9.0] - 2026-07-14
+
+### Added
+- `scripts/audit.py`：8 项确定性巡检检查脚本化（覆盖率/完整性/链接有效性/命名/索引准确性/链接格式/source优化/孤儿检测）+ cross-refs，输出 JSON + 人类可读报告，问题带 severity（minor 格式 / warning 断链）
+- `scripts/lintlib.py`：6 个共用 lint 函数（文件名规范化 / wikilink 提取校验 / 文件索引 / 同名小节检测），check_undigested / audit / self-check 三处复用
+- self-check D7 脚本化：SKILL.md 交叉引用有效性检查改为调 `audit.py --check-cross-refs`（Agent 侧 token ~64k→~1-2k）
+
+### Changed
+- `check_undigested.py`：未匹配 summary 的文件判 NEW（去掉"无日期→MANUAL"逻辑），日期从父目录 fallback；normalize 补全角标点
+- SKILL.md 预检规则：MANUAL 类别需人工核验，不能凭 NEW=0 停止
+- digestion-rules.md wikilink 规范：禁止 .md 后缀 / 路径敏感字符
+- SKILL.md 正文阶段描述统一为五阶段（Ingest→Digest→Output→Audit→Delete）
+
+### Fixed
+- check_undigested 对含全角标点/无日期文件名误判 MANUAL
+- audit 路径 wikilink 误报（`/` 是 Obsidian 合法路径分隔符）+ frontmatter source 字段 .md 误扫
+
+---
+
 ## [v1.8.0] - 2026-05-26
 
 ### Added

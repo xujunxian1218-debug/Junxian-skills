@@ -17,6 +17,8 @@ import re
 import sys
 from pathlib import Path
 
+from lintlib import normalize_filename
+
 
 # ── 不应消化的元数据文件名关键词 ──
 SKIP_KEYWORDS = ["manifest", "metadata", "index", ".git", "__pycache__"]
@@ -30,23 +32,8 @@ SOURCE_PATTERNS = [
 # ── 日期提取正则 ──
 DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
-# ── 中文特殊引号和全角符号清理 ──
-CHAR_NORMALIZE_TABLE = str.maketrans(
-    {
-        "“": "",  # "
-        "”": "",  # "
-        "‘": "",  # '
-        "’": "",  # '
-        "、": "",  # 、
-        "（": "(",  # （
-        "）": ")",  # ）
-        "：": "",   # ：
-        "《": "",   # 《
-        "》": "",   # 》
-        "—": "",   # —
-        "…": "",   # …
-    }
-)
+# 文件名规范化（normalize_filename）已抽取到 lintlib.py，
+# 供 check_undigested / audit / self-check 共用，避免规则不一致。
 
 
 # ── SHA256 哈希缓存 ──
@@ -86,13 +73,6 @@ def save_hash_cache(vault_root: Path, hashes: dict[str, str]) -> None:
     )
 
 
-def normalize_filename(name: str) -> str:
-    """Normalize filename for comparison: strip special chars, lowercase."""
-    name = name.translate(CHAR_NORMALIZE_TABLE)
-    name = re.sub(r'[\\/:*?"<>|#%^&$!`\'=~\s]', "", name)
-    return name.lower().strip()
-
-
 def is_skippable(filename: str) -> bool:
     """Check if file should be marked as SKIP (metadata, manifest, etc.)."""
     stem = Path(filename).stem.lower()
@@ -111,6 +91,19 @@ def extract_date(filename: str) -> str | None:
     """Extract first YYYY-MM-DD date from filename."""
     m = DATE_RE.search(filename)
     return m.group(1) if m else None
+
+
+def extract_date_from_path(filepath: Path) -> str | None:
+    """Extract YYYY-MM-DD date from a parent directory name.
+
+    the vault 的 raw 按日期目录组织（raw/2026-06-28/xxx.md），文件名本身常无日期。
+    此函数向上遍历父目录，从首个形如 YYYY-MM-DD 的目录名提取日期作为 fallback。
+    """
+    for parent in filepath.parents:
+        m = DATE_RE.search(parent.name)
+        if m:
+            return m.group(1)
+    return None
 
 
 def read_summary_sources(summaries_dir: Path) -> dict[str, str]:
@@ -299,32 +292,20 @@ def check_undigested(vault_root: Path) -> dict:
             })
             continue
 
-        # Not matched — classify as NEW or MANUAL
-        # If we can extract a date and source_id but it's not in the digested set,
-        # and we have digested entries for that source, it's likely new content
-        if raw_date and raw_source_id and digested_date_source:
-            # Has identifiable source pattern — likely genuine new content
-            results["new"].append({
-                "file": rel_path,
-                "name": stem,
-                "date": raw_date,
-                "source_id": raw_source_id,
-            })
-        elif raw_date:
-            # Has date but no source pattern — probably new
-            results["new"].append({
-                "file": rel_path,
-                "name": stem,
-                "date": raw_date,
-                "source_id": None,
-            })
-        else:
-            # No date — uncertain
-            results["manual"].append({
-                "file": rel_path,
-                "name": stem,
-                "reason": "无法自动判定，需人工确认",
-            })
+        # 未匹配任何已有 summary = 真正的新增内容。
+        # 注意：不能因"文件名无日期"就判 MANUAL —— the vault 的 raw 按日期目录
+        # 组织（raw/YYYY-MM-DD/xxx.md），文件名本身常无日期，但只要未匹配任何
+        # summary 就是新内容。（修复日志 2026-06-28/07-06/07-10 三次复现的误判：
+        # 真正根因是"无日期→MANUAL"分类逻辑，而非全角标点。）
+        # 日期：优先文件名，fallback 父目录名（raw/YYYY-MM-DD/）。
+        raw_date = raw_date or extract_date_from_path(raw_file)
+
+        results["new"].append({
+            "file": rel_path,
+            "name": stem,
+            "date": raw_date,
+            "source_id": raw_source_id,
+        })
 
     # Save updated hash cache
     save_hash_cache(vault_root, current_hashes)
@@ -400,6 +381,9 @@ def print_report(results: dict, vault_root: Path):
         parts.append(f"{len(updated)} 篇内容已变更")
     if parts:
         print(f"结论: 本次需要处理 {'，'.join(parts)}")
+    elif manual:
+        # NEW=0 但有 MANUAL 时，不应误导为"所有内容已消化完毕"
+        print(f"结论: 无新内容，但有 {len(manual)} 篇待人工确认（可能是新增内容，建议核验）")
     else:
         print("结论: 所有内容已消化完毕")
     print("=" * 60)
