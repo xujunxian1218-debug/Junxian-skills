@@ -22,6 +22,7 @@ from pathlib import Path
 from lintlib import (
     build_file_index,
     check_link_target_exists,
+    detect_duplicate_sections,
     extract_wikilinks,
     has_unsafe_filename_chars,
     normalize_filename,
@@ -36,16 +37,16 @@ REQUIRED_SUMMARY_SECTIONS = ["一句话摘要", "核心要点", "关键概念", 
 SOURCE_FIELD_RE = re.compile(r"^source:\s*\[?\[?(.*?)\]?\]?\s*$", re.M)
 INDEX_STAT_RE = re.compile(r"原始文件数：(\d+)\s*\|\s*摘要数：(\d+)\s*\|\s*主题页数：(\d+)\s*\|\s*概念卡数：(\d+)")
 
-# 9 项检查名称（cross_refs 是 link_validity 的概念卡子集，供 self-check D7 单独调用）
+# 注册的检查项：audit-rules 9 项中 8 项确定性检查 + cross_refs（link_validity 的概念卡
+# 子集，供 self-check D7 单独调用）+ duplicate_sections（重复板块 lint，非 9 项之一）。
 ALL_CHECKS = [
     "coverage", "completeness", "link_validity", "naming",
     "index_accuracy", "link_format", "source_optimization", "orphan",
-    "cross_refs",
+    "cross_refs", "duplicate_sections",
 ]
 
 
 # ── 检查项实现 ──
-# T2：naming 完整示范。其余 T3 实现，此处返回 not_implemented 占位。
 
 def check_naming(vault_root: Path) -> dict:
     """检查 5 命名规范：summaries/concepts/topics 后缀 + 无不安全字符。
@@ -84,11 +85,6 @@ def check_naming(vault_root: Path) -> dict:
         "problems": problems,
         "summary": f"扫描 summaries/concepts/topics：{counts}",
     }
-
-
-def _stub(name: str) -> dict:
-    """T3 待实现的检查项占位。"""
-    return {"check": name, "status": "not_implemented", "problems": [], "summary": "T3 将实现"}
 
 
 def check_coverage(vault_root: Path) -> dict:
@@ -341,6 +337,29 @@ def check_cross_refs(vault_root: Path) -> dict:
             "summary": f"扫描 {checked} 张概念卡，{len(problems)} 处断链/格式问题"}
 
 
+def check_duplicate_sections(vault_root: Path) -> dict:
+    """额外 lint：同一 .md 内同名 ## 板块出现 ≥2 次（消化合并 bug，usage-log 2026-07-07）。
+
+    非 audit-rules 9 项检查之一，是 self-check / lint 的补充：消化合并时若未检测同名
+    板块，会产生重复的「与其他概念的关系」等段落。扫 concepts/topics/summaries。
+    """
+    problems = []
+    checked = 0
+    knowledge = vault_root / KNOWLEDGE_DIR
+    for sub in ("concepts", "topics", "summaries"):
+        for f in _iter_md(knowledge / sub):
+            checked += 1
+            dup = detect_duplicate_sections(f)
+            if dup:
+                rel = str(f.relative_to(vault_root))
+                detail = "、".join(f"{t}×{c}" for t, c in dup.items())
+                problems.append({"file": rel, "issue": f"重复板块：{detail}", "severity": "warning"})
+    return {"check": "duplicate_sections",
+            "status": "pass" if not problems else "fail",
+            "problems": problems,
+            "summary": f"扫描 {checked} 个文件，{len(problems)} 个含重复板块"}
+
+
 CHECKS = {
     "coverage": check_coverage,
     "completeness": check_completeness,
@@ -351,6 +370,7 @@ CHECKS = {
     "source_optimization": check_source_optimization,
     "orphan": check_orphan,
     "cross_refs": check_cross_refs,
+    "duplicate_sections": check_duplicate_sections,
 }
 
 

@@ -1,5 +1,24 @@
 # knowledge-vault Changelog
 
+## [v1.9.1] - 2026-07-23
+
+### Added
+- `scripts/audit.py` 新增 `check_duplicate_sections` 检查（基于 lintlib.detect_duplicate_sections）：检测同一 .md 内重复的 `##` 板块，注册到全量 audit，亦可单独 `--check-duplicate-sections` 调用
+- SKILL.md Digest self-check 新增第 10 项：重复板块检测（拦截消化合并时产生的同名板块重复）
+
+### Changed
+- README 工作原理图：四阶段 → 五阶段（补充 Delete 级联删除环节）
+- README 巡检说明：7 项 → 9 项（补来源优化、孤儿检测）
+- README 模板说明：5 个 → 7 个（补 purpose、overview）
+- README 文件说明表补充 audit.py、lintlib.py、delete-rules.md
+- SKILL.md frontmatter 脱敏：author → Junxian，移除 source/source_refs/created/updated
+
+### Fixed
+- SKILL.md Phase Router 静态版本号 1.8.0 → 1.9.1（此前与 frontmatter 脱节）
+- 删除 audit.py 中的 `_stub` 占位死代码（所有检查项均已实现）
+
+---
+
 ## [v1.9.0] - 2026-07-14
 
 ### Added

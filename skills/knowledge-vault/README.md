@@ -30,7 +30,7 @@ pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
 
 ## 工作原理
 
-四阶段循环：**摄取 → 消化 → 输出 → 巡检**
+五阶段循环：**摄取 → 消化 → 输出 → 巡检 → 删除**
 
 ```
 你的文件（PDF/DOCX/PPTX/...）
@@ -45,7 +45,9 @@ raw/ 目录下的 Markdown 文件
     │                      │
     └──────────────────────┘
         ↓ 巡检（定期健康检查）
-覆盖率、完整性、一致性、链接、命名、索引
+覆盖率、完整性、一致性、链接、命名、索引、来源优化、孤儿检测
+        ↓ 删除（级联清理）
+源文件 → 摘要 → 概念卡 → 主题页，断链自动修复
 ```
 
 ---
@@ -229,7 +231,7 @@ outputs/
 
 > 巡检一下知识库，vault 路径是 `/path/to/my-vault`
 
-检查 7 项指标（覆盖率、完整性、一致性、链接有效性、命名规范、索引准确性、链接格式），生成巡检报告。**巡检只出报告，不会自动修改你的文件。**
+检查 9 项指标（覆盖率、完整性、一致性、链接有效性、命名规范、索引准确性、链接格式、来源优化、孤儿检测），生成巡检报告。**巡检只出报告，不会自动修改你的文件。**
 
 ---
 
@@ -298,13 +300,16 @@ outputs/
 | `scripts/ingest.py` | 文件摄取脚本 |
 | `scripts/check_undigested.py` | 未消化文件检测脚本（三层匹配 + SHA256 增量哈希：精确→日期交叉→模糊→内容变更检测） |
 | `scripts/fix_image_paths.py` | 图片路径修正脚本 |
-| `templates/tpl-*.md` | 5 个模板文件（摘要、概念、主题、笔记、阅读笔记） |
+| `scripts/audit.py` | 巡检脚本（8 项确定性检查 + 交叉引用 + 重复板块检测） |
+| `scripts/lintlib.py` | 巡检共用 lint 函数（normalize / wikilink / 孤儿检测等） |
+| `templates/tpl-*.md` | 7 个模板文件（摘要、概念、主题、笔记、阅读笔记、purpose、overview） |
 | `references/digestion-rules.md` | 消化规则 |
 | `references/output-rules.md` | 消费规则（6 种场景、检索策略） |
-| `references/audit-rules.md` | 巡检规则 |
+| `references/audit-rules.md` | 巡检规则（9 项检查） |
+| `references/delete-rules.md` | 级联删除规则（6 步流程、级联表） |
 
 ## 版本
 
-当前版本：v1.9.0 — 详见 CHANGELOG.md
+当前版本：v1.9.1 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。
