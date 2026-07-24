@@ -1,5 +1,16 @@
 # knowledge-vault Changelog
 
+## [v1.9.3] - 2026-07-24
+
+### Fixed
+- `build_file_index` 范围盲区：此前只索引 `knowledge/*.md`，不覆盖 `raw/`，导致 link_validity/cross_refs 把所有指向 raw/ 的链接（源 md + 图片）误报断链。改为扫全 vault 所有文件，key 含 `f.name` + `f.stem`
+- `validate_wikilink_slug` .md 误判：此前任何含 .md 的 wikilink 都判格式错误，但概念名合法含 .md（如 `AGENTS.md-概念`）。改为只对纯 slug 末尾的 .md 报错（概念名中间 .md、路径 wikilink `raw/foo.md` 合法）
+
+### Changed
+- `build_file_index` 的 `subdir` 参数改为可选（默认 None = 全 vault）
+
+---
+
 ## [v1.9.2] - 2026-07-24
 
 ### Added

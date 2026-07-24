@@ -71,15 +71,20 @@ def extract_wikilinks(text: str) -> list[str]:
 def validate_wikilink_slug(target: str) -> tuple[bool, str | None]:
     """Validate wikilink slug format. Returns (ok, reason).
 
-    Only checks format (pure slug: no .md suffix, no path-sensitive chars / \\ :).
-    Does NOT check whether the target file exists -- use check_link_target_exists.
-    A bare concept name (missing -concept suffix) is not flagged here; it surfaces
-    indirectly via a non-existent target.
+    Only checks format. Flags a TRAILING .md on a pure slug (e.g. `[[xxx-概念.md]]`)
+    but NOT .md inside a name (`AGENTS.md-概念`) or a path wikilink (`raw/foo.md`) --
+    those are valid. Also flags path-sensitive chars / \\ :. Does NOT check whether
+    the target file exists -- use check_link_target_exists. A bare concept name
+    (missing -concept suffix) surfaces indirectly via a non-existent target.
+
+    v1.9.3: previously any `.md` anywhere was flagged, wrongly rejecting concept
+    names that legitimately contain .md (AGENTS.md, SOUL.md) -- per Ajknowledge
+    audit-real-issues-2026-07-24.
     """
     if not target:
         return False, "empty slug"
-    if ".md" in target:
-        return False, f"contains .md suffix (wikilink must be pure slug, unlike frontmatter source path): [[{target}]]"
+    if target.endswith(".md") and "/" not in target:
+        return False, f"trailing .md suffix on a pure slug (a name like 'AGENTS.md-概念' or a path like 'raw/foo.md' is fine): [[{target}]]"
     # \\ : * ? " < > | are illegal in filenames (Windows + Obsidian) and break linking.
     # NOTE: / is a LEGAL Obsidian path separator (e.g. [[summaries/xxx]]), so it is NOT
     # flagged here. A concept name containing / that doesn't resolve to a file is caught
@@ -90,19 +95,26 @@ def validate_wikilink_slug(target: str) -> tuple[bool, str | None]:
     return True, None
 
 
-def build_file_index(vault_root: Path, subdir: str = "knowledge") -> dict[str, Path]:
-    """Walk vault_root/<subdir>/*.md and build {file_stem: path} index.
+def build_file_index(vault_root: Path, subdir: str | None = None) -> dict[str, Path]:
+    """Walk the vault and build {name-or-stem: path} index for link target lookup.
 
-    Reused by check_link_target_exists / orphan detection so each wikilink does
-    not trigger a full vault scan. file_stem is the wikilink target (Obsidian
-    addresses by stem).
+    Indexes BOTH f.name (with extension) and f.stem so wikilinks resolve whether
+    they carry an extension/path (`[[raw/images/xxx.jpg]]`, `[[raw/foo.md]]`) or
+    are a pure slug (`[[xxx-概念]]` -- Obsidian addresses files by stem).
+
+    v1.9.3: previously walked only vault_root/knowledge/*.md, missing every link
+    into raw/ (source files, images) and causing mass false "broken link" reports
+    (per Ajknowledge audit-real-issues-2026-07-24: ~219 false positives). subdir
+    is kept optional for callers that still scope to a subdirectory.
     """
     index: dict[str, Path] = {}
-    base = vault_root / subdir
+    base = vault_root if subdir is None else vault_root / subdir
     if not base.exists():
         return index
-    for f in base.rglob("*.md"):
-        index[f.stem] = f
+    for f in base.rglob("*"):
+        if f.is_file():
+            index[f.name] = f
+            index[f.stem] = f
     return index
 
 
