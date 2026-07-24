@@ -121,17 +121,43 @@ def check_link_target_exists(
     return (p is not None, p)
 
 
+def strip_fenced_code(text: str) -> str:
+    """Strip fenced code block content (``` / ~~~) so lint scans ignore markdown
+    shown inside code blocks.
+
+    Knowledge concept cards often display template/example markdown inside fenced
+    blocks (e.g. a sample AGENTS.md with its own `## 开发命令` heading, or a
+    `[[xxx-概念]]` wikilink example). Those are illustrative — not real document
+    structure or links — and must be excluded from duplicate-section / wikilink
+    scans. Fixes AGENTS.md-概念.md false positive (v1.9.2): its 3x `## 开发命令`
+    and 3x `## 代码风格` all live inside ```markdown example blocks.
+    """
+    out = []
+    in_fence = False
+    for line in text.splitlines(keepends=True):
+        if line.lstrip().startswith(("```", "~~~")):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            out.append(line)
+    return "".join(out)
+
+
 def detect_duplicate_sections(md_path: Path) -> dict[str, int]:
     """Detect same-named ## sections appearing >= 2 times in one .md. Returns {title: count}.
 
     Fixes usage-log 2026-07-07: concept cards with duplicate "related concepts"
     sections (15 systematic). Root cause: digestion merge didn't detect same-name
     sections, neither did self-check.
+
+    Code blocks are stripped first (strip_fenced_code) so `##` headings shown as
+    examples inside ``` blocks are not counted (v1.9.2: AGENTS.md-概念.md fix).
     """
     try:
         text = md_path.read_text(encoding="utf-8")
     except Exception:
         return {}
+    text = strip_fenced_code(text)
     headers = re.findall(r"^##\s+(.+?)\s*$", text, re.M)
     counts = Counter(h.strip() for h in headers)
     return {h: c for h, c in counts.items() if c > 1}

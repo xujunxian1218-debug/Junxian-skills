@@ -1,5 +1,15 @@
 # knowledge-vault Changelog
 
+## [v1.9.2] - 2026-07-24
+
+### Added
+- `lintlib.strip_fenced_code(text)`：剥离 ```/~~~ 围栏代码块内容，供 lint 函数共用
+
+### Fixed
+- `detect_duplicate_sections` 代码块盲区：正则 `^##\s+` 不区分代码块内外，概念卡在 ```markdown 代码块内展示的模板示例标题（如 AGENTS.md-概念.md 展示的 `## 开发命令`/`## 代码风格`，各 3 次全在代码块内）被误判为文档结构重复。detect 前先调 `strip_fenced_code` 剥离代码块
+
+---
+
 ## [v1.9.1] - 2026-07-23
 
 ### Added

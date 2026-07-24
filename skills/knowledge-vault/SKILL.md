@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.9.1
+version: 1.9.2
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -23,7 +23,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.9.1. If encountering issues already fixed in recent versions, check
+> **Version**: 1.9.2. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
