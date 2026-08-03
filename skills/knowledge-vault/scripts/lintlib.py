@@ -189,3 +189,73 @@ def detect_duplicate_sections(md_path: Path) -> dict[str, int]:
     headers = re.findall(r"^##\s+(.+?)\s*$", text, re.M)
     counts = Counter(h.strip() for h in headers)
     return {h: c for h, c in counts.items() if c > 1}
+
+
+def compute_inbound_counts(vault_root: Path) -> dict[str, int]:
+    """Count inbound wikilinks for each concept/topic stem across knowledge/.
+
+    Returns {stem: inbound_count} — how many other pages reference each stem
+    (self-references excluded, frontmatter excluded). Shared by check_orphan
+    (audit #9) and build_manifest (concept/topic inbound for Analysis).
+
+    Extracted from audit.check_orphan in v1.12.0 (DRY: one implementation).
+    """
+    knowledge = vault_root / "knowledge"
+    inbound: dict[str, set[str]] = {}
+    if not knowledge.exists():
+        return {}
+    for f in knowledge.rglob("*.md"):
+        try:
+            text = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        self_stem = f.stem
+        for target in extract_wikilinks(strip_frontmatter(text)):
+            if target == self_stem:
+                continue  # 排除自引用
+            inbound.setdefault(target, set()).add(self_stem)
+    return {stem: len(refs) for stem, refs in inbound.items()}
+
+
+def detect_definition_overlap(concepts_dir: Path, threshold: float = 0.5) -> list[dict]:
+    """检测概念卡定义重叠（bigram Jaccard ≥ threshold）。返回候选对 [{a,b,def_a,def_b,score}]。
+
+    语义判断仍由 Agent（audit-rules 第 3 项一致性）。本函数输出候选对供复核。
+    bigram（2-gram）无需分词，适合中文。v1.12.0 新增。
+    """
+    defs: list[tuple[str, str]] = []  # (name, def)
+    if not concepts_dir.exists():
+        return []
+    for f in sorted(concepts_dir.glob("*.md")):
+        try:
+            text = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        text = strip_fenced_code(text)
+        m = re.search(r"^## 一句话定义\s*\n(.+?)(?=\n## |\Z)", text, re.M | re.S)
+        if not m:
+            continue
+        defn = m.group(1).strip().split("\n")[0].strip()
+        if defn:
+            defs.append((f.stem.removesuffix("-概念"), defn))
+
+    def bigrams(s: str) -> set:
+        s = re.sub(r"\s+", "", s)
+        return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else {s}
+
+    pairs = []
+    for i in range(len(defs)):
+        bi_i = bigrams(defs[i][1])
+        if not bi_i:
+            continue
+        for j in range(i + 1, len(defs)):
+            bi_j = bigrams(defs[j][1])
+            if not bi_j:
+                continue
+            score = len(bi_i & bi_j) / len(bi_i | bi_j)
+            if score >= threshold:
+                pairs.append({"a": defs[i][0], "b": defs[j][0],
+                              "def_a": defs[i][1], "def_b": defs[j][1],
+                              "score": round(score, 2)})
+    pairs.sort(key=lambda x: x["score"], reverse=True)
+    return pairs

@@ -307,13 +307,14 @@ outputs/
 | `scripts/audit.py` | 巡检脚本（8 项确定性检查 + 交叉引用 + 重复板块检测） |
 | `scripts/lintlib.py` | 巡检共用 lint 函数（normalize / wikilink / 孤儿检测等） |
 | `templates/tpl-*.md` | 7 个模板文件（摘要、概念、主题、笔记、阅读笔记、purpose、overview） |
-| `references/digestion-rules.md` | 消化规则 |
+| `references/digestion/` | 消化规则切片（dedup/generation/review，按阶段读）|
+| `references/digestion-rules.md` | 消化规则索引（指向 3 切片）|
 | `references/output-rules.md` | 消费规则（6 种场景、检索策略） |
 | `references/audit-rules.md` | 巡检规则（9 项检查） |
 | `references/delete-rules.md` | 级联删除规则（6 步流程、级联表） |
 
 ## 版本
 
-当前版本：v1.11.0 — 详见 CHANGELOG.md
+当前版本：v1.12.0 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。

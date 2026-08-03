@@ -1,5 +1,28 @@
 # knowledge-vault Changelog
 
+## [v1.12.0] - 2026-08-04
+
+### Added
+- `scripts/build_manifest.py`：预生成 `.llm-wiki-cache/manifest.json`（concepts name+定义+反引数 + topics），Analysis 读 manifest 替代 index.md 全文（省 token）
+- `lintlib.compute_inbound_counts`：从 audit.check_orphan 抽离（DRY，check_orphan + build_manifest 共用）
+- `lintlib.detect_definition_overlap`：概念定义 bigram Jaccard 重叠检测（无需分词）
+- `audit.check_related_summaries`：校验 topics frontmatter related_summaries 指向真实摘要（逐行解析 YAML 去引号）
+- `audit.check_definition_overlap`：概念定义重叠候选对（阈值 0.5，供 Agent 复核）
+- `references/digestion/` 三切片：dedup.md + generation.md + review.md（按阶段读省 token）
+- SKILL.md 预检 1.5 生成 manifest；Analysis 改 manifest 优先（缺失回退 index.md）
+
+### Changed
+- `audit.check_coverage`：调 check_undigested 排除 DUPE/SKIP，消除 orphan 误报（Ajknowledge 30→0）
+- `audit.check_orphan`：改用 lintlib.compute_inbound_counts
+- digestion-rules.md 改为索引（指向 3 切片）；SKILL.md 6 处按阶段指向切片
+- tpl-topic.md related_summaries 加示例注释
+
+### Notes
+- Ajknowledge 实测：coverage 30 误报消除、related_summaries 发现 2 真实断链、definition_overlap 无重叠
+- manifest token 收益当前 28%（110 概念），随库增长扩大
+
+---
+
 ## [v1.11.0] - 2026-08-03
 
 ### Added

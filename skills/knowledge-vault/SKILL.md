@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.11.0
+version: 1.12.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -23,7 +23,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.11.0. If encountering issues already fixed in recent versions, check
+> **Version**: 1.12.0. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
@@ -144,7 +144,7 @@ After ingestion, proceed to Digest.
 ## Phase 3: Digest
 
 The core AI-driven phase. For each new raw file without a summary, execute
-these steps. **Read `references/digestion-rules.md` before the first digestion**
+these steps. **Read `references/digestion/dedup.md` (dedup) and `references/digestion/generation.md` (analysis/generation) before the first digestion**
 for detailed rules on deduplication, image processing, and naming.
 
 ### Pre-digestion checks (mandatory, in order)
@@ -153,6 +153,16 @@ for detailed rules on deduplication, image processing, and naming.
    ```bash
    python <skill-path>/scripts/ingest.py --auto --vault <vault-path>
    ```
+
+1.5. **Regenerate manifest** (v1.12.0 — Analysis token optimization): rebuild
+   the compact concept/topic index used by Step 1 Analysis:
+   ```bash
+   python <skill-path>/scripts/build_manifest.py --vault <vault-path>
+   ```
+   Output: `.llm-wiki-cache/manifest.json` (the stem "manifest" is auto-SKIP'd
+   by ingest/check_undigested — do not rename, or it loses that protection).
+   If this step is skipped, Analysis falls back to reading `knowledge/index.md`
+   in full.
 
 2. **Fix image paths**:
    ```bash
@@ -192,7 +202,7 @@ for detailed rules on deduplication, image processing, and naming.
    - 仅 A 类（架构图/流程图，most economical）
    - 不识图（text inference + disclaimer）
    Wait for the user's strategy choice before proceeding. The chosen strategy
-   drives Digestion Step 3 (image recognition) per `references/digestion-rules.md`.
+   drives Digestion Step 3 (image recognition) per `references/digestion/generation.md`.
    Note: remote images cannot be recognized locally (download is v1.13.0); the
    strategy does not apply to them. When `image_recognition` is `disabled` or
    `purpose.md` is absent, skip this sub-step. If no new files, report and
@@ -207,7 +217,7 @@ for detailed rules on deduplication, image processing, and naming.
 ### Digestion workflow (per new raw file)
 
 The digestion is a **two-step process**: analyze first, then generate.
-**Read `references/digestion-rules.md`** for the full rules on each step.
+**Read `references/digestion/generation.md`** for Analysis+Generation rules.
 
 **For files with `-转写-` in the filename (ASR transcripts):**
 Before any analysis, mentally correct the transcript text. ASR output
@@ -222,12 +232,18 @@ your understanding only, and reflected in the generated summary/concepts/topics.
 **If `purpose.md` exists in vault root, read it first** — it defines what this
 knowledge base cares about, which informs what to emphasize and de-emphasize.
 
-Read the raw file AND the current state of the knowledge base, then produce
-a structured analysis covering:
+Read the raw file AND the current state of the knowledge base. **Prefer
+`.llm-wiki-cache/manifest.json`** (compact concept/topic index with inbound
+counts — generated at pre-check step 1.5) over `knowledge/index.md` for
+concept lookup and connection-finding; if manifest is missing or stale, fall
+back to `knowledge/index.md`. Only read individual concept cards/topic pages
+in full when the manifest indicates a likely match needing merge detail.
+
+Then produce a structured analysis covering:
 
 1. **Key entities** — people, organizations, products, tools mentioned
    - Name, type, role in source (central vs. peripheral)
-   - Whether it likely already exists in the wiki (check `knowledge/index.md`)
+   - Whether it likely already exists in the wiki (check manifest / `knowledge/index.md`)
 
 2. **Key concepts** — theories, methods, techniques, phenomena
    - Name and brief definition
@@ -239,7 +255,7 @@ a structured analysis covering:
 4. **Connections to existing wiki**
    - What existing concepts/topics does this source relate to?
    - Does it strengthen, challenge, or extend existing knowledge?
-   - Scan `knowledge/index.md`, existing concept cards, and topic pages to find connections
+   - Scan manifest / `knowledge/index.md` for concepts/topics, then read matching cards/pages for detail
 
 5. **Contradictions & tensions**
    - Does anything in this source conflict with existing wiki content?
@@ -266,12 +282,12 @@ Using the analysis from Step 1 as context, generate wiki files:
      returned by Glob — never rely on memory or guess the path, as special
      characters (curly quotes, em dashes) must match the real file.
    - Image handling: classify each image (A-E), convert or preserve accordingly
-     (see `references/digestion-rules.md` for the classification system)
+     (see `references/digestion/generation.md` for the classification system)
    - Image references must use Obsidian wikilinks: `![[raw/images/xxx.jpg]]`
      (never use Markdown relative paths like `../raw/images/` — they break in Obsidian)
 
 2. **Extract/update concepts** → `knowledge/concepts/`
-   - Existing concept → intelligently merge new information (see digestion-rules.md
+   - Existing concept → intelligently merge new information (see digestion/generation.md
      "Page Merge Strategy" section for merge rules). Preserve all existing content
      while adding new contributions from this source.
    - New concept → create using `templates/tpl-concept.md`.
@@ -345,7 +361,7 @@ After self-check passes, output a review summarizing this digestion session:
 3. Content covers: contradictions, duplicates, missing pages, UPDATED files
    (from check_undigested.py report), and improvement suggestions.
 4. If no issues found, state "本次消化未发现需要关注的问题。"
-5. **Read `references/digestion-rules.md` → Review Output Format** for the
+5. **Read `references/digestion/review.md`** for the
    full output template and design notes.
 6. The review file also serves as input for the next Digest Analysis — the
    Agent can read the most recent review to see what issues were flagged.

@@ -22,6 +22,8 @@ from pathlib import Path
 from lintlib import (
     build_file_index,
     check_link_target_exists,
+    compute_inbound_counts,
+    detect_definition_overlap,
     detect_duplicate_sections,
     extract_wikilinks,
     has_unsafe_filename_chars,
@@ -29,6 +31,7 @@ from lintlib import (
     strip_frontmatter,
     validate_wikilink_slug,
 )
+from check_undigested import check_undigested
 
 KNOWLEDGE_DIR = "knowledge"
 
@@ -43,7 +46,7 @@ INDEX_STAT_RE = re.compile(r"原始文件数：(\d+)\s*\|\s*摘要数：(\d+)\s*
 ALL_CHECKS = [
     "coverage", "completeness", "link_validity", "naming",
     "index_accuracy", "link_format", "source_optimization", "orphan",
-    "cross_refs", "duplicate_sections",
+    "cross_refs", "duplicate_sections", "related_summaries", "definition_overlap",
 ]
 
 
@@ -113,8 +116,24 @@ def check_coverage(vault_root: Path) -> dict:
             name = re.sub(r"\.md$", "", name)
             src_norm[normalize_filename(name)] = f
     matched = set(raw_norm) & set(src_norm)
-    orphan_raw = [raw_norm[k] for k in (set(raw_norm) - set(src_norm))]
+    orphan_raw_keys = set(raw_norm) - set(src_norm)
     orphan_summary = [src_norm[k] for k in (set(src_norm) - set(raw_norm))]
+
+    # v1.12.0: 排除 check_undigested 判定的 DUPE/SKIP（消除多格式内容 + 元数据文件的 orphan 误报）
+    try:
+        undigested = check_undigested(vault_root)
+        dupe_skip = set()
+        for cat in ("dupe", "skip"):
+            for item in undigested.get(cat, []):
+                p = Path(item["file"])
+                if "images" in p.parts:
+                    continue
+                dupe_skip.add(normalize_filename(p.stem))
+        orphan_raw_keys -= dupe_skip
+    except Exception:
+        pass  # check_undigested 失败不阻塞 coverage（回退原行为）
+
+    orphan_raw = [raw_norm[k] for k in orphan_raw_keys]
     problems = []
     for p in orphan_raw[:50]:
         problems.append({"file": str(p.relative_to(vault_root)), "issue": "orphan raw：无对应摘要", "severity": "warning"})
@@ -265,23 +284,13 @@ def check_source_optimization(vault_root: Path) -> dict:
 def check_orphan(vault_root: Path) -> dict:
     """检查 9 孤儿检测：concept/topic 入链数。0=孤儿(Warning)，1=弱连接(Minor)。"""
     knowledge = vault_root / KNOWLEDGE_DIR
-    inbound: dict[str, set[str]] = {}
-    for f in knowledge.rglob("*.md"):
-        try:
-            text = f.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        self_stem = f.stem
-        for target in extract_wikilinks(strip_frontmatter(text)):
-            if target == self_stem:
-                continue  # 排除自引用
-            inbound.setdefault(target, set()).add(self_stem)
+    inbound = compute_inbound_counts(vault_root)  # v1.12.0 抽到 lintlib，与 build_manifest 共用
     problems = []
     n_orphan = n_weak = 0
     for sub in ("concepts", "topics"):
         for f in _iter_md(knowledge / sub):
             stem = f.stem
-            cnt = len(inbound.get(stem, set()))
+            cnt = inbound.get(stem, 0)
             rel = str(f.relative_to(vault_root))
             if cnt == 0:
                 problems.append({"file": rel, "issue": "孤儿（0 入链，无任何页面引用）", "severity": "warning"})
@@ -349,6 +358,87 @@ def check_duplicate_sections(vault_root: Path) -> dict:
             "summary": f"扫描 {checked} 个文件，{len(problems)} 个含重复板块"}
 
 
+def check_related_summaries(vault_root: Path) -> dict:
+    """检查 topics frontmatter related_summaries：每项对应 summaries/ 真实文件存在。
+
+    check_link_validity 用 strip_frontmatter 跳过 frontmatter，related_summaries 字段
+    从未校验。本检查专项补回（audit-rules.md:43 要求）。v1.12.0 新增。
+    """
+    topics_dir = vault_root / KNOWLEDGE_DIR / "topics"
+    if not topics_dir.exists():
+        return {"check": "related_summaries", "status": "pass", "problems": [],
+                "summary": "topics/ 不存在"}
+    summaries_index = build_file_index(vault_root, subdir=Path(KNOWLEDGE_DIR) / "summaries")
+    problems = []
+    checked = 0
+    for f in _iter_md(topics_dir):
+        checked += 1
+        try:
+            text = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        if not text.startswith("---"):
+            continue
+        end = text.find("\n---", 3)
+        if end == -1:
+            continue
+        items = _parse_related_summaries_items(text[3:end])
+        rel = str(f.relative_to(vault_root))
+        for item in items:
+            exists, _ = check_link_target_exists(Path(item).stem, summaries_index)
+            if not exists:
+                problems.append({"file": rel,
+                                 "issue": f"related_summaries 指向不存在的摘要: {item}",
+                                 "severity": "warning"})
+    return {"check": "related_summaries",
+            "status": "pass" if not problems else "fail",
+            "problems": problems,
+            "summary": f"扫描 {checked} 个主题页，{len(problems)} 个 related_summaries 断链"}
+
+
+def _parse_related_summaries_items(frontmatter: str) -> list[str]:
+    """从 topic frontmatter 提取 related_summaries 条目（inline/block list），去 YAML 引号。
+
+    逐行扫描，避免 \\s+ 跨行导致 block 边界错乱（v1.12.0 修正）。
+    """
+    def clean(s: str) -> str:
+        return s.strip().strip('"').strip("'").strip()
+    items: list[str] = []
+    in_list = False
+    for line in frontmatter.split("\n"):
+        m = re.match(r"^related_summaries:\s*(.*)$", line)
+        if m:
+            inline = m.group(1).strip()
+            if inline.startswith("["):
+                return [clean(x) for x in inline.strip("[]").split(",") if x.strip()]
+            if inline:
+                return [clean(inline)]
+            in_list = True
+            continue
+        if in_list:
+            item_m = re.match(r"^\s*-\s+(.+)$", line)
+            if item_m:
+                items.append(clean(item_m.group(1)))
+            elif line.strip() == "" or re.match(r"^\s+\S", line):
+                continue
+            else:
+                in_list = False  # 顶格新 key，列表结束
+    return items
+
+
+def check_definition_overlap(vault_root: Path) -> dict:
+    """检查概念定义重叠（bigram Jaccard ≥ 0.5）。输出候选对，语义判断由 Agent。v1.12.0 新增。"""
+    concepts_dir = vault_root / KNOWLEDGE_DIR / "concepts"
+    pairs = detect_definition_overlap(concepts_dir, threshold=0.5)
+    problems = [{"file": f"{p['a']}-概念 vs {p['b']}-概念",
+                 "issue": f"定义重叠 {p['score']}（>=0.5 疑似重复，Agent 复核）：A[{p['def_a']}] B[{p['def_b']}]",
+                 "severity": "minor"} for p in pairs[:30]]
+    return {"check": "definition_overlap",
+            "status": "pass" if not problems else "fail",
+            "problems": problems,
+            "summary": f"{len(pairs)} 对疑似定义重叠（阈值 0.5，Agent 复核语义）"}
+
+
 CHECKS = {
     "coverage": check_coverage,
     "completeness": check_completeness,
@@ -360,6 +450,8 @@ CHECKS = {
     "orphan": check_orphan,
     "cross_refs": check_cross_refs,
     "duplicate_sections": check_duplicate_sections,
+    "related_summaries": check_related_summaries,
+    "definition_overlap": check_definition_overlap,
 }
 
 

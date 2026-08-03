@@ -2,6 +2,7 @@
 title: "{{topic_name}}"
 created: {{date:YYYY-MM-DD}}
 updated: {{date:YYYY-MM-DD}}
+# 文件名列表（不是路径/wikilink），如 [xxx-摘要-2026-04-12.md, yyy-摘要-2026-04-15.md]
 related_summaries: []
 ---
 
