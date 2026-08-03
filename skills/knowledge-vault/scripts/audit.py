@@ -26,6 +26,7 @@ from lintlib import (
     extract_wikilinks,
     has_unsafe_filename_chars,
     normalize_filename,
+    strip_frontmatter,
     validate_wikilink_slug,
 )
 
@@ -155,18 +156,6 @@ def _iter_md(directory: Path):
         yield from sorted(directory.glob("*.md"))
 
 
-def _body_only(text: str) -> str:
-    """Strip YAML frontmatter. Wikilink scans should ignore frontmatter fields like
-    `source: [[raw/.../x.md]]` and `related_summaries:` -- those are file-path links,
-    not knowledge wikilinks, and would be false positives for .md/format checks.
-    """
-    if text.startswith("---"):
-        end = text.find("\n---", 3)
-        if end != -1:
-            return text[end + 4:]
-    return text
-
-
 def check_link_validity(vault_root: Path) -> dict:
     """检查 4 链接有效性：topics/concepts/summaries 所有 wikilink 指向真实存在的文件。"""
     problems = []
@@ -180,7 +169,7 @@ def check_link_validity(vault_root: Path) -> dict:
                 text = f.read_text(encoding="utf-8")
             except Exception:
                 continue
-            for target in extract_wikilinks(_body_only(text)):
+            for target in extract_wikilinks(strip_frontmatter(text)):
                 ok, reason = validate_wikilink_slug(target)
                 if not ok:
                     problems.append({"file": str(f.relative_to(vault_root)), "issue": reason, "severity": "minor"})
@@ -240,7 +229,7 @@ def check_link_format(vault_root: Path) -> dict:
     except Exception:
         return {"check": "link_format", "status": "pass", "problems": [], "summary": "index.md 读取失败"}
     problems = []
-    for target in extract_wikilinks(_body_only(text)):
+    for target in extract_wikilinks(strip_frontmatter(text)):
         ok, reason = validate_wikilink_slug(target)
         if not ok:
             problems.append({"file": "knowledge/index.md", "issue": reason, "severity": "minor"})
@@ -283,7 +272,7 @@ def check_orphan(vault_root: Path) -> dict:
         except Exception:
             continue
         self_stem = f.stem
-        for target in extract_wikilinks(_body_only(text)):
+        for target in extract_wikilinks(strip_frontmatter(text)):
             if target == self_stem:
                 continue  # 排除自引用
             inbound.setdefault(target, set()).add(self_stem)
@@ -322,7 +311,7 @@ def check_cross_refs(vault_root: Path) -> dict:
             text = f.read_text(encoding="utf-8")
         except Exception:
             continue
-        for target in extract_wikilinks(_body_only(text)):
+        for target in extract_wikilinks(strip_frontmatter(text)):
             ok, reason = validate_wikilink_slug(target)
             if not ok:
                 problems.append({"file": str(f.relative_to(vault_root)), "issue": reason})

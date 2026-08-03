@@ -1,5 +1,38 @@
 # knowledge-vault Changelog
 
+## [v1.11.0] - 2026-08-03
+
+### Added
+- digestion-rules 新增 **Step 3 条件性识图校验**：触发三条件（purpose enabled + 策略≠不识图 + 模型支持视觉），A 类 Mermaid 校验 / B 类表格校验 / D 类描述生成；任一不满足降级为 v1.10.0 文本推断
+- SKILL.md 预检第4步升级：纯告知 → 告知 + **识图策略选择**（全部识图 A/B/D / 仅 A 类 / 不识图）
+- SKILL.md Dependencies 补模型视觉依赖 + 不支持时降级说明
+- README Compatibility 补 multimodal/runtime 差异（Claude Code 视觉支持；Cursor/Windsurf 部分配置降级）
+
+### Changed
+- tpl-purpose「识图设置」板块：去掉"仅统计不真识图"，改为真识图生效 + 策略 + 需视觉模型
+- digestion-rules 免责声明：v1.11.0 起识图已执行则去除"（未启用识图校验）"限定词
+
+### Notes
+- 真识图 Step 3 端到端验证通过（A 类架构图→Mermaid 校验；D 类信息图卡片→描述生成）
+- 纯规则层改动（无新脚本，count_images 复用 v1.10.0）
+- 远程图片下载 R3 推迟到 v1.13.0
+
+---
+
+## [v1.10.0] - 2026-08-03
+
+### Added
+- `scripts/count_images.py`：图片引用统计（4步掩码去重管线：本地/远程/格式违规/缺失），供 Digest 预检消耗控制 gate。接口 `--vault` / `--json` / `--scope new|all` / `--files`
+- `lintlib.strip_frontmatter`：从 audit `_body_only` 提取为公共函数（audit + count_images 共用）
+- SKILL.md 预检第4步：`image_recognition:enabled` 时调 count_images 告知图片规模（消耗控制 gate）
+- `templates/tpl-purpose.md` 新增 `image_recognition` 字段（disabled 默认 / enabled）
+- digestion-rules 免责声明条件性化（"未启用识图校验"限定词）
+
+### Changed
+- audit.py 改用 lintlib.strip_frontmatter（行为不变，DRY）
+
+---
+
 ## [v1.9.3] - 2026-07-24
 
 ### Fixed

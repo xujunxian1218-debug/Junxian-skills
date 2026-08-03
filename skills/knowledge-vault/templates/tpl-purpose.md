@@ -1,6 +1,7 @@
 ---
 type: purpose
 created: {{date:YYYY-MM-DD}}
+image_recognition: disabled
 ---
 
 # 知识库定位
@@ -23,3 +24,12 @@ created: {{date:YYYY-MM-DD}}
 
 ## 演进论点
 [当前假设和关注焦点，随知识积累更新]
+
+## 识图设置
+
+`image_recognition` 控制消化前的图片消耗告知 gate：
+
+- `disabled`（默认）：消化前不统计图片，所有图片按文本推断处理
+- `enabled`：消化前统计 NEW 文件中的图片引用（本地 / 远程 / 格式违规 / 缺失），告知图片规模并让你选识图策略（全部识图 A/B/D / 仅 A 类 / 不识图）
+
+> v1.11.0 起，启用后会对所选类别做真正的图片识别校验（A 类 Mermaid 校验 / B 类表格校验 / D 类描述生成）。识图需执行模型支持视觉（multimodal）；不支持时自动降级为文本推断 + 免责声明。

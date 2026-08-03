@@ -133,6 +133,22 @@ def check_link_target_exists(
     return (p is not None, p)
 
 
+def strip_frontmatter(text: str) -> str:
+    """Strip YAML frontmatter. Image/wikilink scans should ignore frontmatter fields
+    like `source: [[raw/.../x.md]]` and `related_summaries:` -- those are file-path
+    links, not content references, and would be false positives.
+
+    Shared by audit (link_validity) and count_images (image scan). Extracted from
+    audit._body_only in v1.10.0 to avoid duplication (one implementation, per the
+    lintlib DRY philosophy).
+    """
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            return text[end + 4:]
+    return text
+
+
 def strip_fenced_code(text: str) -> str:
     """Strip fenced code block content (``` / ~~~) so lint scans ignore markdown
     shown inside code blocks.

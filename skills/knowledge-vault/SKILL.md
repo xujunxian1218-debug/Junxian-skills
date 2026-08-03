@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.9.3
+version: 1.11.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -23,7 +23,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.9.3. If encountering issues already fixed in recent versions, check
+> **Version**: 1.11.0. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
@@ -79,6 +79,14 @@ pip install "faster-whisper>=1.0.0"
 # Also requires ffmpeg: https://ffmpeg.org/download.html
 # Windows: choco install ffmpeg
 ```
+
+For image recognition (optional, v1.11.0):
+
+Real image recognition (Digestion Step 3) relies on the executing Agent's model
+vision capability (multimodal) — **no extra package needed**, but the Agent
+runtime must support vision. Runtimes without vision (some Cursor/Windsurf
+configs) automatically degrade to text inference + disclaimer. Control via
+`purpose.md` `image_recognition: enabled`.
 
 ## Phase 1: Initialize
 
@@ -172,8 +180,23 @@ for detailed rules on deduplication, image processing, and naming.
 
 4. **Digest plan confirmation**: List all files to be digested and stop.
    Show the user: file count, filenames, and estimated scope (rough number of
-   new concepts/topics that might be created). Wait for user confirmation
-   before proceeding. If no new files, report and stop — do not enter digestion.
+   new concepts/topics that might be created). **Image scale pre-report +
+   recognition strategy (conditional)**: if `purpose.md` sets
+   `image_recognition: enabled`, run `count_images.py` to get the image scale:
+   ```bash
+   python <skill-path>/scripts/count_images.py --vault <vault-path> --scope new --files <NEW file paths from step 3>
+   ```
+   Skip when total images = 0. Present the scale (total / local / remote /
+   violations / missing) and ask the user to choose a recognition strategy:
+   - 全部识图（A/B/D）
+   - 仅 A 类（架构图/流程图，most economical）
+   - 不识图（text inference + disclaimer）
+   Wait for the user's strategy choice before proceeding. The chosen strategy
+   drives Digestion Step 3 (image recognition) per `references/digestion-rules.md`.
+   Note: remote images cannot be recognized locally (download is v1.13.0); the
+   strategy does not apply to them. When `image_recognition` is `disabled` or
+   `purpose.md` is absent, skip this sub-step. If no new files, report and
+   stop — do not enter digestion.
 
 5. **Filename safety scan**: Scan all `NEW` files from step 3 for filenames
    containing problematic characters (Chinese curly quotes `""` `''`).

@@ -168,12 +168,13 @@ my-vault/
 Agent 会自动完成：
 
 1. **去重检查**：跳过已有摘要的文件，只处理新文件（含 SHA256 内容变更检测）
-2. **生成摘要**：提炼为一句话摘要、核心要点、关键概念、金句
-3. **抽取概念**：识别跨文章的通用概念，创建或更新概念卡
-4. **更新主题页**：按主题整合多篇文章的观点
-5. **更新总索引**：刷新统计数字、时间线、链接
-6. **自动自检**：确保所有链接格式正确、统计数字一致、交叉引用有效
-7. **输出 Review**：总结本次消化的矛盾、重复、建议等，保存到 `knowledge/digest-review-{date}.md`
+2. **图片消耗告知**（开启时）：若 `purpose.md` 设 `image_recognition: enabled`，统计新文件图片并让你选识图策略（全部识图 A/B/D / 仅 A 类 / 不识图），控制 token 消耗
+3. **生成摘要**：提炼为一句话摘要、核心要点、关键概念、金句（含图片处理：识图校验 A/B 类、生成 D 类描述）
+4. **抽取概念**：识别跨文章的通用概念，创建或更新概念卡
+5. **更新主题页**：按主题整合多篇文章的观点
+6. **更新总索引**：刷新统计数字、时间线、链接
+7. **自动自检**：确保所有链接格式正确、统计数字一致、交叉引用有效
+8. **输出 Review**：总结本次消化的矛盾、重复、建议等，保存到 `knowledge/digest-review-{date}.md`
 
 ### 第四步：消费知识（6 种场景）
 
@@ -269,6 +270,7 @@ outputs/
 - Python 3.10+
 - Coding Agent（Claude Code、Cursor、Windsurf 等）
 - 可选：ffmpeg（音视频转写）
+- 可选：支持视觉（multimodal）的模型——用于图片识别；runtime 不支持时自动降级为文本推断
 
 **Tested on:**
 - Windows 11
@@ -280,6 +282,7 @@ outputs/
 **Known Limitations:**
 - 脚本中的 shebang 行（`#!/usr/bin/env python3`）在 Windows 上无效，需直接用 `python scripts/xxx.py` 调用
 - 路径参数在 Windows 下支持 `/` 和 `\` 两种分隔符（脚本内部使用 `pathlib`）
+- 图片识别依赖执行模型的视觉能力：Claude Code（视觉模型）支持；Cursor/Windsurf 等部分配置可能不支持，此时自动降级为纯文本推断 + 免责声明（通过 `purpose.md` `image_recognition` 控制）
 
 ---
 
@@ -300,6 +303,7 @@ outputs/
 | `scripts/ingest.py` | 文件摄取脚本 |
 | `scripts/check_undigested.py` | 未消化文件检测脚本（三层匹配 + SHA256 增量哈希：精确→日期交叉→模糊→内容变更检测） |
 | `scripts/fix_image_paths.py` | 图片路径修正脚本 |
+| `scripts/count_images.py` | 图片引用统计脚本（本地/远程/格式违规/缺失，供消耗控制 gate） |
 | `scripts/audit.py` | 巡检脚本（8 项确定性检查 + 交叉引用 + 重复板块检测） |
 | `scripts/lintlib.py` | 巡检共用 lint 函数（normalize / wikilink / 孤儿检测等） |
 | `templates/tpl-*.md` | 7 个模板文件（摘要、概念、主题、笔记、阅读笔记、purpose、overview） |
@@ -310,6 +314,6 @@ outputs/
 
 ## 版本
 
-当前版本：v1.9.3 — 详见 CHANGELOG.md
+当前版本：v1.11.0 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。

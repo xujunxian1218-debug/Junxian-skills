@@ -266,7 +266,9 @@ graph TD
     A[Node A] --> B[Node B]
 ```
 
-> 基于原文推断，如有差异请查看原图：`![原始引用路径](path)`
+> 基于原文上下文推断生成（未启用识图校验）。如有差异请查看原图：`![原始引用路径](path)`
+
+> 注：v1.11.0 起，当 Step 3 识图校验已对该图执行时，去除"（未启用识图校验）"限定词；未执行（识图关闭 / 模型不支持视觉 / 策略=不识图）时保留此限定词。
 ````
 
 Choose Mermaid type based on content:
@@ -284,7 +286,7 @@ Extract data points from context:
 |------|--------|--------|
 | 提交数 | 300+ | 500+ |
 
-> 数据基于原文描述提取，详见原图：`![原始引用路径](path)`
+> 数据基于原文描述提取（未启用识图校验）。详见原图：`![原始引用路径](path)`
 ```
 
 **Type C → Keep original screenshot**
@@ -306,10 +308,59 @@ Extract data points from context:
 
 Do not include in the summary at all.
 
+### Step 3: Conditional image recognition (v1.11.0)
+
+When the triggers below all hold, upgrade A/B/D processing from text inference
+to **real image recognition**. Otherwise skip this step entirely and use
+Step 1-2 text inference + disclaimer (v1.10.0 behavior). **Output is never
+blocked by recognition failure — degrade gracefully.**
+
+**Triggers (ALL must hold):**
+1. `purpose.md` sets `image_recognition: enabled`
+2. The recognition strategy chosen at pre-check step 4 ≠ "不识图"
+3. The executing model supports image recognition (multimodal). If you are
+   unsure or the model lacks vision, degrade — do not attempt recognition.
+
+**Execution by user strategy:**
+- "仅 A 类": recognize Type A only
+- "全部识图": recognize Type A / B / D (Type C keeps the original per Step 2 —
+  recognition adds little; Type E is ignored)
+
+**Type A recognition:**
+1. First generate the Mermaid draft per Step 2 rules (from surrounding text)
+2. Read the local image, **verify/correct** the draft against the real image
+   (node names, edge directions, hierarchy)
+3. Output the corrected Mermaid; **drop the "（未启用识图校验）" disclaimer**
+
+**Type B recognition:**
+1. First generate the markdown table draft per Step 2 rules
+2. Read the image, verify/complete data values
+3. Output the corrected table; **drop the disclaimer**
+
+**Type D recognition (v1.11.0 new):**
+1. Read the local image
+2. Generate a one-sentence description of the core content (the key info of
+   the PPT card / infographic / UI screenshot — this is high-value for bare
+   image references that have no surrounding text description)
+3. Output the original image ref + description; **replace the Step 2
+   "（一句话描述图片核心内容）" placeholder**
+
+**Degrade cases:**
+- Model lacks vision / image unreadable / strategy = "不识图" → Step 1-2 text
+  inference + **keep** the disclaimer
+- Type D degrade: if the surrounding text has a description, fill it; otherwise
+  keep the placeholder
+
+**Remote images (`https://`, not downloaded):** always text inference +
+disclaimer (remote download is v1.13.0). Recognition does not apply to them.
+
 ### Remote URL images
 
 Images with `https://...` URLs cannot be read locally. Use text inference only.
 Apply the same classification, but note that verification is not possible.
+Remote images always carry the "（未启用识图校验）" disclaimer regardless of the
+`image_recognition` setting — they cannot be verified until downloaded to
+`raw/images/` (remote-image localization is planned for v1.13.0).
 
 ### Key Images section format
 
