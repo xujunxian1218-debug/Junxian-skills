@@ -252,16 +252,22 @@ blocked by recognition failure — degrade gracefully.**
 - Type D degrade: if the surrounding text has a description, fill it; otherwise
   keep the placeholder
 
-**Remote images (`https://`, not downloaded):** always text inference +
-disclaimer (remote download is v1.13.0). Recognition does not apply to them.
+**Remote images (`https://`, not downloaded):** since v1.13.0, ingest
+localizes remote images to `raw/images/` (see `download_remote_images` in
+ingest.py) — the digested raw text normally has no `https://` image URLs left.
+A surviving remote URL means the download **failed** (degraded, original link
+kept): text inference + disclaimer only, recognition does not apply.
 
-### Remote URL images
+### Remote URL images (degraded — download failed)
 
-Images with `https://...` URLs cannot be read locally. Use text inference only.
-Apply the same classification, but note that verification is not possible.
-Remote images always carry the "（未启用识图校验）" disclaimer regardless of the
-`image_recognition` setting — they cannot be verified until downloaded to
-`raw/images/` (remote-image localization is planned for v1.13.0).
+Since v1.13.0 (T2.1), ingest downloads every `![](https://...)` to
+`raw/images/` and rewrites it to a local `![[raw/images/{md5hash}.jpg]]`
+wikilink. A remote URL surviving into the digested raw file means the download
+**failed** (network error / 403 / suspect placeholder) and ingest kept the
+original link as a fallback. For these rare failures: text inference +
+disclaimer only (cannot verify until manually downloaded). Successful downloads
+are ordinary local images — process per A/B/C/D/E classification and apply
+Step 3 recognition as usual.
 
 ### Key Images section format
 
@@ -295,6 +301,40 @@ backticks.
 
 ---
 
+## Ad & Promotion Skipping (v1.13.0)
+
+> 显式化 Agent 已有的隐式行为（220 篇公众号文章零污染验证有效）。配合 T2.1 远程图
+> 「全下」策略——ingest 阶段下载所有远程图（含广告图，因公众号图床 URL 无广告特征、
+> ingest 强分类会误杀知识图），广告/推广过滤统一在 Digest 阶段做（Agent 识图 + 上下文）。
+
+源文件（尤其公众号 HTML 转换来的）常混入推广内容，**一律不纳入摘要 / 概念 / 主题**：
+不摘要、不引用、不生成概念卡、不出现在「关键图片」板块。
+
+### 文本推广块
+
+正文前 / 后的 `>` blockquote 或独立段落，命中以下模式即跳过：
+
+| 模式 | 示例 |
+|------|------|
+| 课程 / 训练营招生 | 开班 / 报名 / 限时优惠 / 早鸟价 / 原价 / 拼团 / 名额 |
+| 引流转化 | 欢迎咨询 / 扫码关注 / 加微信 / 进群 / 领资料 / 私信 |
+| 平台导流 | 阅读原文 / 点击关注 / 转发分享 / 点赞在看 / 收藏 |
+| 作者 / 品牌 IP | 个人 IP 介绍、付费社群入口、知识星球、小报童 |
+
+### 图片广告（Type E 强化）
+
+Type E（Ignore entirely）显式覆盖以下形态：
+
+- **头图 / 封面图**：文章首张大图，纯装饰无信息——除非正文「如下图」「如图所示」显式引用
+- **尾图**：文末二维码、公众号名片、关注引导图
+- **文中推广 banner**：课程海报、活动宣传图、商品图、抽奖图
+- **分割线 / 装饰图**：纯视觉分隔，无知识内容
+
+**判断准则**：图被正文文字引用（「下图展示了…」「如图」「见图 X」）→ 知识图，按
+A/B/C/D 处理；无引用 + 位于首尾 + 纯装饰或转化导向 → Type E 跳过。
+
+---
+
 ## Naming Conventions
 
 ### Summary filenames
@@ -317,6 +357,46 @@ Pattern: `{concept-name}-概念.md`
 Pattern: `{topic-name}-主题.md`
 - Use the topic's commonly known Chinese name
 - Example: `AI编程方法-主题.md`, `金融与经济-主题.md`
+
+---
+
+## Wikilink Writing Rules (v1.13.0)
+
+> 收口 [F]/[H]/[I] 反馈。根因：写 wikilink 凭记忆/简写，缺即时硬校验 → slug 与实际
+> 文件名背离而断链（% 入 slug、trailing .md 掩盖断链、凭记忆简写概念名）。
+> 以下规则覆盖**所有 wikilink 写入点**，Digest Step 2 全程强制。由
+> `audit.py --check-cross-refs` / `--check-link-validity` 自动检测（SKILL.md self-check 第 7 项）。
+
+### 写入前必须核实（硬约束）
+
+每写一个 `[[target]]`——无论出现在文件名、交叉引用、index 条目、frontmatter `source`、
+正文「原文出处」/「关键概念」/「与其他概念的关系」——**写入前**必须：
+
+1. **Glob 核实 target 实际存在**：用 `Glob` 按 target 对应路径确认文件在 vault 里。
+2. **slug 完全匹配实际文件名 stem**：不允许凭记忆简写、缩写、补全后缀。
+
+**反直觉盲区（重点）**：本会话刚创建的文件也在核实范围内。常见错误是「分析阶段决定要
+创建概念 X，写到交叉引用时凭记忆 `[[X-概念]]`，但实际生成的文件名经 normalize 去掉了
+某些字符，slug 与文件名不一致而断链」。**即使 X 是本会话刚创建的，也要回头 Glob 核实
+它的实际文件名再写 wikilink。**
+
+### Slug 字符规范（两层，与 lintlib.WIKILINK_UNSAFE_CHARS 对齐）
+
+| 层 | 字符集 | 用途 |
+|---|---|---|
+| ① 文件系统合法（生成文件名） | 禁 `\ / : * ? " < > | # % ^ & $ ! \` ' = ~` + 空格 | `normalize_filename` 生成 summaries/concepts/topics 文件名时清洗 |
+| ② wikilink 语法安全（slug 校验） | 禁 `\ : * ? " < > | # %` | `validate_wikilink_slug` 校验 wikilink target |
+
+- 层②比层①窄：`^ & $ ! \` ' = ~ 空格` 在 wikilink target 里不破坏 Obsidian 解析（层①仍清洗是文件名规范要求，非 wikilink 合法性）。
+- `%` `#` 两层都禁：`%` 触发 URL 解码（`%20`→空格）、`#` 是 Obsidian 块锚点分隔符（`[[xxx#章节]]`），任何 wikilink 含二者都会被 Obsidian 特殊解析而断链。
+- **`&` 不在层②**：raw/ 源文件名合法保留 `&`（如 `Anthropic & OpenAI...md`），`[[raw/...&...]]` 能正确解析；指向 knowledge/ 的 wikilink 天然不含 `&`（normalize 保证），不靠格式校验拦。
+
+### `source` / 「原文出处」wikilink 一致性（收口 [H]）
+
+summary frontmatter `source` 与正文「原文出处」的 wikilink，**路径必须与 raw 文件实际名
+完全一致**（含空格、中文标点、`&` 等 raw 原始字符——raw 文件名不经 normalize）。常见错误：
+把 raw 文件名当生成文件名去 normalize（丢空格/标点），导致 source 与 raw 实际名不符而断链。
+写入前 Glob 确认 `raw/` 下实际文件名，原样填入 `[[raw/.../实际文件名.md]]`。
 
 ---
 
@@ -371,8 +451,8 @@ in the properties panel. Do not use plain text paths — they won't be clickable
    **强制规则**：此板块内所有概念引用的 wikilink 必须使用完整 slug 格式 `[[xxx-概念]]`：
    - 禁止裸概念名（如 `[[Embedding 与 RAG]]` 应写为 `[[Embedding 与 RAG-概念]]`）
    - 禁止 `.md` 后缀（`[[xxx-概念]]` 不是 `[[xxx-概念.md]]`，区别于 frontmatter source 文件路径，per usage-log 2026-07-07）
-   - 禁止路径敏感字符 `/ \ :`（概念名含斜杠会断链，用紧凑写法或 alias，如 `[[WhatWhyHow vs Wow-概念|What/Why/How vs Wow]]`，per usage-log 2026-07-10）
-   以上 wikilink 规范由 `scripts/audit.py --check-cross-refs` 自动检测（见 SKILL.md self-check 第 7 项）。
+   - 禁止路径敏感字符 `/ \ :` 及 wikilink 语法保留符 `% #`（`%` URL 解码、`#` 块锚点，含则断链）
+   完整双层字符规范 + 写入前核实硬约束见上文「Wikilink Writing Rules」段。以上由 `scripts/audit.py --check-cross-refs` 自动检测（见 SKILL.md self-check 第 7 项）。
 5. **💡 我的理解** — Personal understanding, analogies, supplements
 
 ### Topic page (tpl-topic.md)

@@ -41,13 +41,18 @@ REQUIRED_SUMMARY_SECTIONS = ["一句话摘要", "核心要点", "关键概念", 
 SOURCE_FIELD_RE = re.compile(r"^source:\s*\[?\[?(.*?)\]?\]?\s*$", re.M)
 INDEX_STAT_RE = re.compile(r"原始文件数：(\d+)\s*\|\s*摘要数：(\d+)\s*\|\s*主题页数：(\d+)\s*\|\s*概念卡数：(\d+)")
 
-# 注册的检查项：audit-rules 9 项中 8 项确定性检查 + cross_refs（link_validity 的概念卡
-# 子集，供 self-check D7 单独调用）+ duplicate_sections（重复板块 lint，非 9 项之一）。
+# 注册的检查项：audit-rules 9 项中 8 项确定性检查 + cross_refs（D7 self-check 入口；
+# v1.13.0 起与 link_validity 同范围同逻辑，全量审计默认不跑以避免重复）+ duplicate_sections
+# （重复板块 lint，非 9 项之一）+ related_summaries + definition_overlap。
 ALL_CHECKS = [
     "coverage", "completeness", "link_validity", "naming",
     "index_accuracy", "link_format", "source_optimization", "orphan",
     "cross_refs", "duplicate_sections", "related_summaries", "definition_overlap",
 ]
+# 默认全量审计跑的检查：排除 cross_refs（v1.13.0 起与 link_validity 同范围同逻辑，
+# D7 专用入口，全量时由 link_validity 覆盖，重复跑纯浪费）。--check-cross-refs 单独
+# 调用仍有效（self-check D7 场景）。
+DEFAULT_CHECKS = [c for c in ALL_CHECKS if c != "cross_refs"]
 
 
 # ── 检查项实现 ──
@@ -175,32 +180,53 @@ def _iter_md(directory: Path):
         yield from sorted(directory.glob("*.md"))
 
 
+def _scan_wikilinks(files, idx: dict, vault_root: Path) -> list:
+    """扫描一组 .md 的正文 wikilink，返回 problems（格式 minor + 断链 warning）。
+
+    check_link_validity 与 check_cross_refs 的共用实现（DRY：一处逻辑，两个入口）。
+
+    T1.4（v1.13.0 [I]）：trailing .md 格式错也补查存在性（去 .md 后查），不再
+    `continue` 掩盖断链——同一 wikilink 既报格式错又报断链。unsafe char（% # &）
+    仍跳过存在性检查：这类 slug 与文件名背离（normalize_filename 已去字符、slug 却
+    留着），查存在性只产噪音，格式错报告本身已是足够信号（usage-log [F]/[I] 根因）。
+    """
+    problems = []
+    for f in files:
+        try:
+            text = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        rel = str(f.relative_to(vault_root))
+        for target in extract_wikilinks(strip_frontmatter(text)):
+            ok, reason = validate_wikilink_slug(target)
+            if not ok:
+                problems.append({"file": rel, "issue": reason, "severity": "minor"})
+                # trailing .md：去后缀补查存在性（file_index 索引了 f.stem，纯 slug 能命中）
+                if not (target.endswith(".md") and "/" not in target):
+                    continue  # unsafe char：跳过存在性（见 docstring）
+                probe = target[:-3]
+            else:
+                probe = target
+            exists, _ = check_link_target_exists(probe, idx)
+            if not exists:
+                problems.append({"file": rel,
+                                 "issue": f"断链: [[{target}]] 目标文件不存在",
+                                 "severity": "warning"})
+    return problems
+
+
 def check_link_validity(vault_root: Path) -> dict:
     """检查 4 链接有效性：topics/concepts/summaries 所有 wikilink 指向真实存在的文件。"""
-    problems = []
     idx = build_file_index(vault_root)
     knowledge = vault_root / KNOWLEDGE_DIR
-    checked = 0
+    files = []
     for sub in ("topics", "concepts", "summaries"):
-        for f in _iter_md(knowledge / sub):
-            checked += 1
-            try:
-                text = f.read_text(encoding="utf-8")
-            except Exception:
-                continue
-            for target in extract_wikilinks(strip_frontmatter(text)):
-                ok, reason = validate_wikilink_slug(target)
-                if not ok:
-                    problems.append({"file": str(f.relative_to(vault_root)), "issue": reason, "severity": "minor"})
-                    continue
-                exists, _ = check_link_target_exists(target, idx)
-                if not exists:
-                    problems.append({"file": str(f.relative_to(vault_root)),
-                                     "issue": f"断链: [[{target}]] 目标文件不存在", "severity": "warning"})
+        files.extend(_iter_md(knowledge / sub))
+    problems = _scan_wikilinks(files, idx, vault_root)
     return {"check": "link_validity",
             "status": "pass" if not problems else "fail",
             "problems": problems,
-            "summary": f"扫描 {checked} 个文件，{len(problems)} 处断链/格式问题"}
+            "summary": f"扫描 {len(files)} 个文件，{len(problems)} 处断链/格式问题"}
 
 
 def check_index_accuracy(vault_root: Path) -> dict:
@@ -305,34 +331,24 @@ def check_orphan(vault_root: Path) -> dict:
 
 
 def check_cross_refs(vault_root: Path) -> dict:
-    """D7 交叉引用有效性：所有概念卡正文 wikilink 目标存在。self-check D7 调用。
+    """D7 交叉引用有效性：knowledge/ 所有 .md 正文 wikilink 目标存在。self-check D7 调用。
 
-    与 check_link_validity 区别：本检查只扫概念卡（D7 的范围），用于 Digest 后
-    self-check 即时校验本次生成 + 全库概念卡的交叉引用。
+    v1.13.0 [F] T1.3：扫描范围从「仅概念卡」扩展到 topics/concepts/summaries，
+    消除「摘要/主题正文 wikilink 在 D7 self-check 时无人校验」盲区（usage-log
+    2026-07-21/07-29，_dev/image-understanding-iteration-plan R4）。与 check_link_validity
+    共用 _scan_wikilinks；全量 audit 默认只跑 link_validity（DEFAULT_CHECKS 排除
+    cross_refs 避免重复扫描），本检查由 D7 单独 `--check-cross-refs` 调用。
     """
-    problems = []
     idx = build_file_index(vault_root)
-    concepts = vault_root / KNOWLEDGE_DIR / "concepts"
-    checked = 0
-    for f in _iter_md(concepts):
-        checked += 1
-        try:
-            text = f.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        for target in extract_wikilinks(strip_frontmatter(text)):
-            ok, reason = validate_wikilink_slug(target)
-            if not ok:
-                problems.append({"file": str(f.relative_to(vault_root)), "issue": reason})
-                continue
-            exists, _ = check_link_target_exists(target, idx)
-            if not exists:
-                problems.append({"file": str(f.relative_to(vault_root)),
-                                 "issue": f"断链: [[{target}]] 目标不存在", "severity": "warning"})
+    knowledge = vault_root / KNOWLEDGE_DIR
+    files = []
+    for sub in ("topics", "concepts", "summaries"):
+        files.extend(_iter_md(knowledge / sub))
+    problems = _scan_wikilinks(files, idx, vault_root)
     return {"check": "cross_refs",
             "status": "pass" if not problems else "fail",
             "problems": problems,
-            "summary": f"扫描 {checked} 张概念卡，{len(problems)} 处断链/格式问题"}
+            "summary": f"扫描 {len(files)} 个文件（topics/concepts/summaries），{len(problems)} 处断链/格式问题"}
 
 
 def check_duplicate_sections(vault_root: Path) -> dict:
@@ -509,7 +525,7 @@ def main() -> None:
 
     selected = [c for c in ALL_CHECKS if getattr(args, f"check_{c}")]
     if not selected:
-        selected = ALL_CHECKS  # 默认全部
+        selected = DEFAULT_CHECKS  # 全量默认排除 cross_refs（与 link_validity 重复）
 
     results = run_checks(vault_root, selected)
 

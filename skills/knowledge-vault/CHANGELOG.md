@@ -1,5 +1,32 @@
 # knowledge-vault Changelog
 
+## [v1.13.0] - 2026-08-12
+
+### Added
+- **链接校验系统性加固**：wikilink 写入硬约束（写入前 Glob 核实 target 真实存在 + 双层字符规范：FS 非法字符 + `%`/`#` URL/wikilink 保留符），一次根因修复覆盖 slug 非法字符、正文引号盲区、trailing `.md` 掩盖断链、路径基准歧义 4 类链接问题
+- **远程图片本地化**：ingest 阶段自动下载远程图片到 `raw/images/`（读 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量，md5(url) 幂等去重，失败降级保留原远程链接 + 警告，<100 字节判占位图）
+- **图片路径裸文件名补全**：`fix_image_paths` 支持双链 / markdown / 裸文件名三种格式自动补全（如 `_page_X_Figure_Y.jpeg` → `![[raw/images/...]]`），CLI `--bare` 可独立运行
+- **消化规则广告跳过显式化**：正文推广块（开班 / 咨询 / 扫码关注 / 阅读原文 / 报名 等模式）+ Type E 图片广告不纳入摘要
+- **audit `extract_wikilinks` 跳代码块**：避免代码块内 wikilink 误报（与 `detect_duplicate_sections` 语义统一）
+- Digest plan / wikilink 写入 / Delete 关键检查点加 🔴 🛑 视觉标记，降低被忽略风险
+
+### Changed
+- `cross_refs` 扫描范围从仅概念卡扩展到所有 `knowledge/` 页面（concepts + topics + summaries），消除摘要/主题正文 wikilink 校验盲区
+- trailing `.md` wikilink 同时报格式错 + 断链（不再 `continue` 掩盖断链）
+- `lintlib.WIKILINK_UNSAFE_CHARS` 双层化（FS 非法 `\:*?"<>|` + `%#` URL/wikilink 保留符）
+- SKILL.md frontmatter 非运行时元数据迁移至 CHANGELOG（降低 Runtime 触发 token）
+- self-check 从 10 项合并为 6 项（去冗余）
+
+### Fixed
+- `fix_image_paths` CLI `--bare` 无法独立运行的 bug（`main` 无前缀时 `sys.exit` 与 `run_fix` 行为不一致）
+
+### Notes
+- 广告策略：ingest 全下载 + Digest 过滤（图床 URL 无广告特征，ingest 强分类误杀知识图）
+- 识图能力保持 v1.11.0（`purpose.md` 不开启，待图资产治理后评估）
+- 远程图下载不硬编码代理，只读环境变量
+
+---
+
 ## [v1.12.2] - 2026-08-12
 
 ### Fixed

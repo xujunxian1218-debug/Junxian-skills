@@ -12,11 +12,15 @@ Knowledge Vault 内容摄取脚本
 """
 
 import argparse
+import hashlib
+import os
 import re
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import ProxyHandler, Request, build_opener
 
 # ── 脚本目录（用于定位同目录的 fix_image_paths） ──
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -77,6 +81,74 @@ def sanitize_filename(name: str) -> str:
     return name if name else "untitled"
 
 
+# ── 远程图本地化（v1.13.0 T2.1）──
+# 8月3号起笔记同步助手停止下载图片，增量文章的远程图必须由 ingest 本地化，
+# 否则 Obsidian 无法渲染。策略：全下——广告过滤交给 Digest 阶段（Agent 识图
+# +上下文，220 篇零污染验证；ingest 阶段公众号图床 URL 无广告特征，强分类
+# 会误杀知识图）。正则与 count_images.RE_REMOTE 同款，保持一致避免走样。
+RE_REMOTE_IMG = re.compile(r'!\[([^\]]*)\]\((https?://[^)]+)\)')
+
+_REMOTE_IMG_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".avif", ".ico"}
+
+
+def _ext_from_url(url: str) -> str:
+    """从 URL 路径推断图片扩展名；无扩展名/被 query 干扰时默认 .jpg。"""
+    ext = Path(urlparse(url).path).suffix.lower()
+    return ext if ext in _REMOTE_IMG_EXTS else ".jpg"
+
+
+def _filename_for_remote(url: str) -> str:
+    """md5(url)[:12] + 原扩展名。同一 URL 恒等映射同一文件名（幂等去重）。"""
+    return f"{hashlib.md5(url.encode('utf-8')).hexdigest()[:12]}{_ext_from_url(url)}"
+
+
+def download_remote_images(text: str, images_dir: Path) -> tuple[str, dict]:
+    """扫描 text 里的远程图 `![](https://...)`，下载到 images_dir，替换为本地双链。
+
+    urllib + HTTP_PROXY/HTTPS_PROXY 读环境变量（不硬编码代理，遵循全局规则）。
+    md5(url)[:12] + 原扩展名命名（同 URL 幂等，已存在则跳过）。
+    失败降级：保留原远程链接 + 警告日志，不阻塞 ingest。
+    全下策略（广告过滤在 Digest 阶段，见 generation.md「广告与推广块跳过」）。
+
+    返回 (new_text, stats)，stats: {downloaded, skipped, failed}。
+    """
+    stats = {"downloaded": 0, "skipped": 0, "failed": 0}
+
+    # 代理（环境变量优先，不硬编码）
+    proxies: dict[str, str] = {}
+    for var in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+        v = os.environ.get(var)
+        if v:
+            proxies["https" if var.lower().startswith("https") else "http"] = v
+    opener = build_opener(ProxyHandler(proxies)) if proxies else build_opener()
+
+    def _download(match: re.Match) -> str:
+        url = match.group(2)
+        filename = _filename_for_remote(url)
+        local_path = images_dir / filename
+        wikilink = f"![[raw/images/{filename}]]"
+
+        if local_path.exists():  # 幂等：同 URL 已下载过
+            stats["skipped"] += 1
+            return wikilink
+        try:
+            req = Request(url, headers={"User-Agent": "Mozilla/5.0 (knowledge-vault ingest)"})
+            with opener.open(req, timeout=20) as resp:
+                data = resp.read()
+            if len(data) < 100:  # 太小，疑似错误页/占位图
+                raise ValueError(f"suspect placeholder ({len(data)} bytes)")
+            local_path.write_bytes(data)
+            stats["downloaded"] += 1
+            return wikilink
+        except Exception as e:
+            stats["failed"] += 1
+            print(f"  [远程图] 下载失败，保留远程链接: {url[:70]} ({type(e).__name__})")
+            return match.group(0)  # 保留原远程引用
+
+    new_text = RE_REMOTE_IMG.sub(_download, text)
+    return new_text, stats
+
+
 def convert_with_marker(src_file: Path, out_file: Path, images_dir: Path) -> bool:
     """用 Marker 转换 PDF，保留图片"""
     try:
@@ -115,6 +187,11 @@ def convert_with_marker(src_file: Path, out_file: Path, images_dir: Path) -> boo
                     f"![[raw/images/{img_filename}]]",
                 )
 
+        # v1.13.0 T2.1: 远程图本地化（PDF 罕见含远程图，统一过一遍，幂等无害）
+        text, img_stats = download_remote_images(text, images_dir)
+        if img_stats["downloaded"] or img_stats["failed"]:
+            print(f"  [远程图] 下 {img_stats['downloaded']} / 跳 {img_stats['skipped']} / 败 {img_stats['failed']}")
+
         out_file.write_text(text, encoding="utf-8")
         print(f"  [Marker] 完成: {out_file.name}")
         return True
@@ -122,11 +199,11 @@ def convert_with_marker(src_file: Path, out_file: Path, images_dir: Path) -> boo
     except Exception as e:
         print(f"  [Marker] 失败: {e}")
         print(f"  [MarkItDown] 尝试回退转换 PDF...")
-        return convert_with_markitdown(src_file, out_file)
+        return convert_with_markitdown(src_file, out_file, images_dir)
 
 
-def convert_with_markitdown(src_file: Path, out_file: Path) -> bool:
-    """用 MarkItDown 转换 Office/文本文件"""
+def convert_with_markitdown(src_file: Path, out_file: Path, images_dir: Path) -> bool:
+    """用 MarkItDown 转换 Office/文本文件（HTML/公众号远程图的主战场）。"""
     try:
         from markitdown import MarkItDown
 
@@ -138,6 +215,11 @@ def convert_with_markitdown(src_file: Path, out_file: Path) -> bool:
         if not text or not text.strip():
             print(f"  [警告] 转换结果为空: {src_file.name}")
             return False
+
+        # v1.13.0 T2.1: 远程图本地化（HTML/公众号文章的 https 图片下载到 raw/images/）
+        text, img_stats = download_remote_images(text, images_dir)
+        if img_stats["downloaded"] or img_stats["failed"]:
+            print(f"  [远程图] 下 {img_stats['downloaded']} / 跳 {img_stats['skipped']} / 败 {img_stats['failed']}")
 
         out_file.write_text(text, encoding="utf-8")
         print(f"  [MarkItDown] 完成: {out_file.name}")
@@ -297,7 +379,7 @@ def ingest_file(src_file: Path, raw_dir: Path, images_dir: Path, audio_cache_dir
     elif ext in VIDEO_EXTS or ext in AUDIO_EXTS:
         return convert_with_asr(src_file, out_file, audio_cache_dir)
     else:
-        return convert_with_markitdown(src_file, out_file)
+        return convert_with_markitdown(src_file, out_file, images_dir)
 
 
 def collect_files(paths: list[str]) -> list[Path]:

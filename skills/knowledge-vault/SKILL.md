@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.12.2
+version: 1.13.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -8,13 +8,6 @@ description: |
   文件驱动个人知识管理系统：Ingest → Digest → Output → Audit → Delete 五阶段循环，
   支持文档转 Markdown、结构化摘要、概念卡、主题页、级联删除，兼容 Obsidian 双链
   EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检" / "从知识库删除这个文件"
-author: SkillVault
-source: synthesized
-source_refs:
-  - OpenClaw 自动生成
-created: 2026-04-16
-updated: 2026-08-12
-tags: [tools, knowledge-management, obsidian, markdown]
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
 
@@ -28,7 +21,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.12.2. If encountering issues already fixed in recent versions, check
+> **Version**: 1.13.0. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
@@ -193,8 +186,8 @@ for detailed rules on deduplication, image processing, and naming.
    rare. The conclusion line says "有 N 篇待人工确认" when MANUAL is non-empty.
    Report all categories to the user.
 
-4. **Digest plan confirmation**: List all files to be digested and stop.
-   Show the user: file count, filenames, and estimated scope (rough number of
+4. 🔴 **Digest plan confirmation — STOP and wait**: List all files to be digested
+   and stop. Show the user: file count, filenames, and estimated scope (rough number of
    new concepts/topics that might be created). **Image scale pre-report +
    recognition strategy (conditional)**: if `purpose.md` sets
    `image_recognition: enabled`, run `count_images.py` to get the image scale:
@@ -277,6 +270,14 @@ genuinely important, not a line-by-line summary.
 
 Using the analysis from Step 1 as context, generate wiki files:
 
+**🔴 Wikilink writing hard constraint (v1.13.0)**: every `[[target]]` you write
+(filenames, cross-references, index entries, frontmatter `source`, body sections)
+must be **Glob-verified against the actual file before writing** — slug matches
+the real filename stem exactly, never from memory, **including files created
+earlier this session** (a just-generated concept may have a normalized name
+different from what you memorized). Full rules (two-layer char spec, source/raw
+consistency): `references/digestion/generation.md` → "Wikilink Writing Rules".
+
 1. **Generate summary** → `knowledge/summaries/{title}-摘要-{YYYY-MM-DD}.md`
    - Use template: `templates/tpl-summary.md`
    - All required frontmatter: `source`, `title`, `date`, `author`, `tags`
@@ -328,34 +329,30 @@ Using the analysis from Step 1 as context, generate wiki files:
 
 After digesting all files, verify every item:
 
-1. Concept index table: every "文件" column uses `[[xxx-概念]]` wikilink format
-2. Topic navigation table: every "文件" column uses `[[xxx-主题]]` wikilink format
-3. Timeline index: every "摘要文件" column uses `[[xxx-摘要-xxx]]` wikilink format
-4. **Summary section title precision**: for every summary generated this session,
+1. **Index table wikilink format**: every table "文件" column in index.md uses the
+   correct wikilink format — concepts `[[xxx-概念]]`, topics `[[xxx-主题]]`, timeline
+   `[[xxx-摘要-xxx]]`. Fix any non-wikilink entries immediately.
+2. **Summary section title precision**: for every summary generated this session,
    verify all required body sections exist AND their headings exactly match the
    template ("一句话摘要" not "一句话总结", "原文金句" not "精彩引述"). Fix any
    mismatched headings immediately. Short summaries with no notable quotes should
    use placeholder text, not omit the section.
-5. Statistics match actual file counts (concepts/, summaries/, topics/)
-6. Fix any non-wikilink entries immediately
-7. **Cross-reference validity (scripted, replaces manual scan)**: Run
-   `py scripts/audit.py --vault <vault> --check-cross-refs`. The script scans ALL
-   concept cards' full-body wikilinks (not just "与其他概念的关系") and verifies
-   targets exist, also flagging format issues (`.md` suffix, path-sensitive chars).
-   From the report: fix broken links (create missing concept card or remove link)
-   and format violations. Do NOT manually scan files or run Grep on Windows
-   backslash paths — it silently misses matches (per usage-log 2026-07-10).
-8. **All numeric annotations in index.md**: scan every line in `index.md` that contains a number in a comment or annotation (patterns like `> ...N...` or `N 篇`/`N 张`/`N 个`). For each such number, verify it matches the actual file count in the corresponding directory. This covers header statistics, directory structure annotations, and any other inline counts. Fix any discrepancies immediately.
-9. **Concept card internal wikilink format**: covered by #7's `--check-cross-refs`
-   report (`.md` suffix, path-sensitive chars, and bare names whose targets don't
-   exist are all flagged). Ensure every issue in the #7 report is resolved — no
-   separate manual scan needed.
-
-10. **Duplicate section detection (scripted)**: Run
-    `py scripts/audit.py --vault <vault> --check-duplicate-sections`. Flags any
-    `.md` whose same `##` heading appears ≥2 times (e.g. a concept card with two
-    "与其他概念的关系" blocks — a digestion merge bug, per usage-log 2026-07-07).
-    Merge duplicate sections before finishing.
+3. Statistics match actual file counts (concepts/, summaries/, topics/).
+4. **Cross-reference validity (scripted, replaces manual scan)**: Run
+   `py scripts/audit.py --vault <vault> --check-cross-refs`. Scans ALL `knowledge/`
+   pages (concepts + topics + summaries — v1.13.0 extended from concepts-only) and
+   verifies targets exist, flagging format issues (`.md` suffix, `%`/`#`/path-sensitive
+   chars) and broken links previously masked by trailing `.md` (both reported, not
+   `continue`-skipped). Concept-card internal wikilinks are covered by the same
+   report — no separate manual scan. From the report: fix broken links (create
+   missing page or remove link) and format violations. Do NOT manually scan files
+   or run Grep on Windows backslash paths — it silently misses matches
+   (per usage-log 2026-07-10).
+5. **All numeric annotations in index.md**: scan every line in `index.md` that contains a number in a comment or annotation (patterns like `> ...N...` or `N 篇`/`N 张`/`N 个`). For each such number, verify it matches the actual file count in the corresponding directory. This covers header statistics, directory structure annotations, and any other inline counts. Fix any discrepancies immediately.
+6. **Duplicate section detection (scripted)**: Run
+   `py scripts/audit.py --vault <vault> --check-duplicate-sections`. Flags any
+   `.md` whose same `##` heading appears ≥2 times (e.g. two "与其他概念的关系" blocks —
+   a digestion merge bug, per usage-log 2026-07-07). Merge duplicate sections before finishing.
 
 ### Digest Review (mandatory, after self-check)
 
@@ -453,7 +450,7 @@ any deletion occurs. All deletions are permanent (no archive, no undo).
 
 ### User Confirmation Required
 
-**Never delete files without user confirmation — always show the plan first.**
+🔴 **CHECKPOINT · 🛑 STOP**: Never delete files without user confirmation — always show the complete cascade plan first and wait. Deletion is irreversible.
 User can override: "只删 raw 和摘要" to skip cascade operations.
 
 ## Naming Conventions

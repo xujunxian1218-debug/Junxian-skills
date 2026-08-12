@@ -46,7 +46,19 @@ CHAR_NORMALIZE_TABLE = str.maketrans(
 )
 
 # Unsafe filename chars (audit-rules.md section 5, Naming Compliance)
+# 用于文件名本身校验（has_unsafe_filename_chars / check_naming）：含全套敏感符。
 UNSAFE_FILENAME_CHARS = set('\\/:*?"<>|#%^&$!`\'=~')
+
+# wikilink slug 校验字符集（v1.13.0）：文件系统非法 + wikilink 语法敏感符。
+# FS 非法（\\ : * ? " < > |）在 Windows/Obsidian 直接断链；% # 是 wikilink 语法保留符——
+# % 触发 URL 解码（%20→空格）、# 是块锚点分隔符（[[xxx#章节]]），无论 target 指向 raw/
+# 源文件还是 knowledge/ 生成文件都会被 Obsidian 特殊解析，必须禁。validate_wikilink_slug
+# 之前只查 FS 非法窄集 `\\:*?"<>|`，% # 漏网。
+# 注意：& 不列入——它是 normalize_filename 的清洗目标（生成文件名去掉），但不是 wikilink
+# 语法非法符；raw/ 源文件名合法保留 &（如 "Anthropic & OpenAI...md"），[[raw/...&...]]
+# 能在 Obsidian 正确解析，列入会误报（真实库回归：raw/ 含 & 的源文件被误判）。
+# 纯格式层无法区分 target 指向 raw/ 还是 knowledge/，只拦「任何上下文都非法」的字符。
+WIKILINK_UNSAFE_CHARS = set('\\:*?"<>|#%')
 
 
 def normalize_filename(name: str) -> str:
@@ -67,7 +79,16 @@ WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
 
 def extract_wikilinks(text: str) -> list[str]:
-    """Extract all [[target|alias]] / [[target]] targets from Markdown (alias stripped)."""
+    """Extract all [[target|alias]] / [[target]] targets from Markdown (alias stripped).
+
+    v1.13.0: strips fenced code blocks first (strip_fenced_code) so wikilinks shown
+    as examples inside ``` / ~~~ blocks are not treated as real links — aligns with
+    detect_duplicate_sections / detect_definition_overlap which already strip code
+    blocks. Deferred since v1.9.2 (real vault had 0 in-block wikilinks in knowledge/);
+    applied now as a defensive consistency fix. Real-vault scan 2026-08-12 confirmed
+    knowledge/ still 0 (raw/ has 10, but audit/inbound scans only scope to knowledge/).
+    """
+    text = strip_fenced_code(text)
     return [m.group(1).strip() for m in WIKILINK_RE.finditer(text)]
 
 
@@ -88,13 +109,17 @@ def validate_wikilink_slug(target: str) -> tuple[bool, str | None]:
         return False, "empty slug"
     if target.endswith(".md") and "/" not in target:
         return False, f"trailing .md suffix on a pure slug (a name like 'AGENTS.md-概念' or a path like 'raw/foo.md' is fine): [[{target}]]"
-    # \\ : * ? " < > | are illegal in filenames (Windows + Obsidian) and break linking.
+    # WIKILINK_UNSAFE_CHARS = FS-illegal (\\ : * ? " < > |) + wikilink syntax-sensitive
+    # (% #). % # are Obsidian wikilink reserved chars (% URL-decodes, # anchors a block)
+    # and break parsing regardless of whether target points at raw/ or knowledge/.
     # NOTE: / is a LEGAL Obsidian path separator (e.g. [[summaries/xxx]]), so it is NOT
     # flagged here. A concept name containing / that doesn't resolve to a file is caught
     # by check_link_target_exists (target missing) -- per usage-log 2026-07-10.
-    bad = set(target) & set('\\:*?"<>|')
+    # NOTE: & is NOT flagged -- raw/ source filenames legitimately retain it
+    # (e.g. [[raw/.../Anthropic & OpenAI...]]); see WIKILINK_UNSAFE_CHARS doc above.
+    bad = set(target) & WIKILINK_UNSAFE_CHARS
     if bad:
-        return False, f"contains illegal filename char(s) {''.join(sorted(bad))} (breaks linking; use compact name or alias): [[{target}]]"
+        return False, f"contains unsafe wikilink char(s) {''.join(sorted(bad))} (breaks linking or diverges from filename; use compact name or alias): [[{target}]]"
     return True, None
 
 
