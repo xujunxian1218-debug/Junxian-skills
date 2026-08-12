@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.12.0
+version: 1.12.2
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -8,7 +8,12 @@ description: |
   文件驱动个人知识管理系统：Ingest → Digest → Output → Audit → Delete 五阶段循环，
   支持文档转 Markdown、结构化摘要、概念卡、主题页、级联删除，兼容 Obsidian 双链
   EXAMPLES: "初始化知识库" / "把这些文件摄取到知识库" / "消化知识库的新内容" / "帮我整理这篇文档" / "知识巡检" / "从知识库删除这个文件"
-author: Junxian
+author: SkillVault
+source: synthesized
+source_refs:
+  - OpenClaw 自动生成
+created: 2026-04-16
+updated: 2026-08-12
 tags: [tools, knowledge-management, obsidian, markdown]
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 ---
@@ -23,7 +28,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.12.0. If encountering issues already fixed in recent versions, check
+> **Version**: 1.12.2. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 

@@ -75,6 +75,27 @@ def detect_vault_prefix(directory: Path, exclude_prefix: str | None = None) -> s
     return max(prefix_counts, key=prefix_counts.get)
 
 
+def count_wikilink_images(directory: Path) -> tuple[int, int]:
+    """统计目录下所有 Obsidian 双链图片引用（不排除任何前缀）。
+
+    返回 (匹配 RE_WIKILINK 的总数, 其中路径含 /images/ 的数量)。
+    用于 detect_vault_prefix 返回 None 时的诊断——区分"无任何双链图"
+    vs "有但前缀均已是目标（被 exclude 掉）"（usage-log 2026-07-23 [E]②）。
+    """
+    total = 0
+    with_images = 0
+    for md_file in directory.rglob("*.md"):
+        try:
+            text = md_file.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        for match in RE_WIKILINK.finditer(text):
+            total += 1
+            if "/images/" in match.group(1):
+                with_images += 1
+    return total, with_images
+
+
 def build_from_pattern(from_prefix: str) -> str:
     """构建路径前缀，确保以 / 结尾。"""
     if from_prefix and not from_prefix.endswith("/"):
@@ -296,8 +317,15 @@ def main():
             from_prefix = detected
             print(f"  检测到: '{from_prefix}'")
         else:
-            print("  未检测到 Obsidian 双链图片引用，请用 --from 手动指定")
-            sys.exit(1)
+            # 诊断：区分"无任何双链图" vs "有但前缀均已是目标"（usage-log 2026-07-23 [E]②）
+            total, _ = count_wikilink_images(target_dir)
+            if total == 0:
+                print("  未检测到任何 Obsidian 双链图片引用（![[.../images/...]]）。")
+                print("  若文件用标准 markdown 语法 ![](...)，请加 --both；或用 --from 手动指定源前缀。")
+            else:
+                print(f"  检测到 {total} 处双链图片引用，但前缀均已是目标 '{to_prefix}'，无需修正。")
+                print("  若实际前缀不同，请用 --from 手动指定。")
+            sys.exit(0)
 
     if not from_prefix:
         print("[错误] 请用 --from 指定源前缀，或用 --auto 自动检测")

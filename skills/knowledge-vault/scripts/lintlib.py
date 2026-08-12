@@ -39,6 +39,9 @@ CHAR_NORMALIZE_TABLE = str.maketrans(
         "？": "",   # fullwidth question mark
         "，": "",   # fullwidth comma
         "！": "",   # fullwidth exclamation mark
+        "。": "",   # ideographic full stop (v1.12.2 P3: CJK 边角，usage-log 2026-08-04)
+        "·": "",   # middle dot / katakana middle dot (v1.12.2 P3)
+        "－": "",   # fullwidth hyphen-minus (v1.12.2 P3；与已有 em dash — 不同)
     }
 )
 
@@ -78,8 +81,8 @@ def validate_wikilink_slug(target: str) -> tuple[bool, str | None]:
     (missing -concept suffix) surfaces indirectly via a non-existent target.
 
     v1.9.3: previously any `.md` anywhere was flagged, wrongly rejecting concept
-    names that legitimately contain .md (AGENTS.md, SOUL.md) -- per Ajknowledge
-    audit-real-issues-2026-07-24.
+    names that legitimately contain .md (AGENTS.md, SOUL.md) -- per real-vault
+    audit 2026-07-24.
     """
     if not target:
         return False, "empty slug"
@@ -104,7 +107,7 @@ def build_file_index(vault_root: Path, subdir: str | None = None) -> dict[str, P
 
     v1.9.3: previously walked only vault_root/knowledge/*.md, missing every link
     into raw/ (source files, images) and causing mass false "broken link" reports
-    (per Ajknowledge audit-real-issues-2026-07-24: ~219 false positives). subdir
+    (per real-vault audit 2026-07-24: ~219 false positives). subdir
     is kept optional for callers that still scope to a subdirectory.
     """
     index: dict[str, Path] = {}

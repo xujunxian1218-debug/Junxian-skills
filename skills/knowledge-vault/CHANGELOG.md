@@ -1,5 +1,32 @@
 # knowledge-vault Changelog
 
+## [v1.12.2] - 2026-08-12
+
+### Fixed
+- `fix_image_paths.py --auto` 检测不到源前缀时的诊断改进：原一律报错退出，无法区分「无任何双链图」vs「前缀均已是目标」。新增 `count_wikilink_images()` 诊断函数分两种情况输出，`exit(1)→exit(0)`（前缀已是目标不是错误）
+- `lintlib.CHAR_NORMALIZE_TABLE` 补 3 个全角字符（`。` 全角句号 / `·` 间隔号 / `－` 全角连字符）
+
+### Changed
+- README Compatibility 补 Windows `py` launcher 说明（未注册 `python` 命令时用 `py`）+ 脚本入口已内置 `sys.stdout.reconfigure(encoding='utf-8')`（控制台不乱码，无需设 PYTHONUTF8）
+- test-prompts.json 从 3 条扩展到 6 条（补 Audit / Delete / 识图 三阶段）
+- skill 内部 CLAUDE.md 目录结构刷新；docs/technical-overview.md 顶部标注历史快照（停 v1.8.0，以 CHANGELOG 为准）
+
+### Notes
+- 纯 patch：还债止血（同步对齐 + 文档刷新 + 兼容性小修），不引入新功能
+- [F] 链接校验系统性加固（slug 即时硬校验 + wikilink 写入约束）+ 远程图本地化 R3 → v1.13.0
+
+---
+
+## [v1.12.1] - 2026-08-04
+
+### Fixed
+- `audit.check_related_summaries` 的 `Path(item).stem` 对含多个 `.` 的文件名（如 `GPT5.4`、`1.75`）截断，导致 frontmatter related_summaries 引用被误报断链 → 改为直接传 item（`build_file_index` 同时索引 `f.name` 和 `f.stem`，带不带 `.md` 都能匹配）
+
+### Notes
+- 纯 bugfix，仅 audit.py 一处改动，link_validity 及其他检查不受影响
+
+---
+
 ## [v1.12.0] - 2026-08-04
 
 ### Added
@@ -12,13 +39,13 @@
 - SKILL.md 预检 1.5 生成 manifest；Analysis 改 manifest 优先（缺失回退 index.md）
 
 ### Changed
-- `audit.check_coverage`：调 check_undigested 排除 DUPE/SKIP，消除 orphan 误报（Ajknowledge 30→0）
+- `audit.check_coverage`：调 check_undigested 排除 DUPE/SKIP，消除 orphan 误报（实测 30→0）
 - `audit.check_orphan`：改用 lintlib.compute_inbound_counts
 - digestion-rules.md 改为索引（指向 3 切片）；SKILL.md 6 处按阶段指向切片
 - tpl-topic.md related_summaries 加示例注释
 
 ### Notes
-- Ajknowledge 实测：coverage 30 误报消除、related_summaries 发现 2 真实断链、definition_overlap 无重叠
+- 真实库实测：coverage 30 误报消除、related_summaries 发现 2 真实断链、definition_overlap 无重叠
 - manifest token 收益当前 28%（110 概念），随库增长扩大
 
 ---

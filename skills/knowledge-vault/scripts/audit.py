@@ -385,7 +385,11 @@ def check_related_summaries(vault_root: Path) -> dict:
         items = _parse_related_summaries_items(text[3:end])
         rel = str(f.relative_to(vault_root))
         for item in items:
-            exists, _ = check_link_target_exists(Path(item).stem, summaries_index)
+            # 直接用 item 查（file_index 同时索引 f.name 和 f.stem）。
+            # 不能用 Path(item).stem：当文件名含多个 "."（如 GPT5.4、1.75）且 item 无
+            # .md 后缀时，Path.stem 会把 ".4与Agent时代..." 当 suffix 截断成 "GPT5"，
+            # 导致误报断链。v1.12.1 修正（GPT5.4 / SpaceX 1.75 误报）。
+            exists, _ = check_link_target_exists(item, summaries_index)
             if not exists:
                 problems.append({"file": rel,
                                  "issue": f"related_summaries 指向不存在的摘要: {item}",
