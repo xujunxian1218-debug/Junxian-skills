@@ -132,10 +132,35 @@ When updating an existing topic page with new content from a source:
 
 4. **实践要点:** Add new actionable insights. Do not remove existing ones.
 
+### Topic ↔ Concept bidirectional links (v1.14.0)
+
+A topic page that links out to its core concept cards but receives no links
+back is a weak connection (inbound = 1, only the index) — Obsidian's backlink
+panel shows the reverse edges, but only explicit wikilinks count toward
+inbound stats and the graph view.
+
+**Rule:** when creating or updating a topic page, every core concept card
+created or updated in the same session must contain one wikilink back to the
+topic page (`[[主题名-主题]]`), placed where it fits naturally — typically in
+「与其他概念的关系」 or an 「应用场景」 line. This keeps the topic page at
+inbound links ≥ 2 (index + concept cards), out of weak-connection status.
+
+- Applies only to cards touched in the current session — do NOT
+  retroactively backfill existing cards (Obsidian backlinks cover them)
+- The backlink follows the same hard constraints as any wikilink: verify
+  the slug exists with Glob before writing (see Wikilink Writing Rules)
+
 ### Merge safety rules
 
 - **Never delete existing content** — only add or integrate
 - **Never change locked fields** — `type`, `name`/`title`, `created`
+- **Merge into same-name sections — never duplicate them.** When an update
+  touches a section that already exists in the card/page (e.g., 「与其他
+  概念的关系」), integrate the new content INTO that existing section. Never
+  append a second copy of a section heading. `audit.py
+  --check-duplicate-sections` flags duplicates as errors (detection since
+  v1.9.1 — this rule is the prevention layer, closing the gap where repeated
+  digests of the same concept accumulated parallel copies of a section)
 - **If uncertain whether to merge or append** — append is safer than rewriting
 - **When in doubt, show the user** the proposed merge and ask for confirmation
 

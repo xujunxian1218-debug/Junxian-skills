@@ -2,7 +2,8 @@
 title: "{{topic_name}}"
 created: {{date:YYYY-MM-DD}}
 updated: {{date:YYYY-MM-DD}}
-# 文件名列表（不是路径/wikilink），如 [xxx-摘要-2026-04-12.md, yyy-摘要-2026-04-15.md]
+# 文件名列表（不是路径/wikilink；基准是 summaries/ 目录下实际文件名，含 .md 后缀），
+# 如 [xxx-摘要-2026-04-12.md, yyy-摘要-2026-04-15.md]
 related_summaries: []
 ---
 
@@ -27,4 +28,5 @@ related_summaries: []
 （结合自己的实际经历补充）
 
 ## 关联主题
-- [[topic-xxx]] - 关联说明
+<!-- wikilink 用完整 slug 格式 [[xxx-主题]]，禁裸主题名/`.md` 后缀/路径敏感字符 -->
+- [[xxx-主题]] - 关联说明

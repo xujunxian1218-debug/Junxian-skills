@@ -1,5 +1,25 @@
 # knowledge-vault Changelog
 
+## [v1.14.0] - 2026-08-26
+
+### Added
+- **远程图下载 SSRF 防护（四层）**：
+  - ① URL 校验：scheme 白名单（http/https）+ 环回/私网/链路本地地址黑名单（含云 metadata `169.254.169.254`）；自建内网图床可设 `KV_ALLOW_PRIVATE_IMAGE_HOSTS=1` 显式放行
+  - ② 重定向逐跳校验：每个 3xx 跳转目标重新过 URL 校验，堵初始校验被重定向绕过的口子
+  - ③ `Content-Type: text/html` 错误页拒收
+  - ④ 下载 20MB 上限（分块读，防意外大文件写满磁盘）
+  - 拦截一律走降级路径（保留远程链接 + 警告），不阻塞摄取；防护为域名/IP 字面量层，不含 DNS rebinding 防御
+- **主题页↔概念卡双向链接规则**：新建/更新主题页时，本会话触碰的核心概念卡各补一条指回主题页的 wikilink，保证主题页入链 ≥2（脱离弱连接）；存量卡不回溯（Obsidian 反链兜底）
+- **概念卡同名小节合并规则**：merge 更新时并入既有同名板块，禁止追加第二个同名标题（预防层，配合 `audit --check-duplicate-sections` 检测层）
+- **模板路径基准显式化**：tpl-concept「相关来源」明确 wikilink 按文件名解析（不带目录前缀、不带 `.md` 后缀）；tpl-topic `related_summaries` 注明基准为 `summaries/` 目录实际文件名；占位符修正为真实 slug 约定（`[[xxx-概念]]` / `[[xxx-主题]]`）
+
+### Changed
+- 远程图下载失败日志补充异常详情（原仅打异常类型名）
+- README Compatibility 补 SSRF 防护说明与内网图床放行开关
+- SKILL.md Phase 2 补远程图本地化与 SSRF 防护描述
+
+---
+
 ## [v1.13.0] - 2026-08-12
 
 ### Added

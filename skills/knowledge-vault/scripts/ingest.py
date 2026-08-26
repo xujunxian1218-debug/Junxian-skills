@@ -13,14 +13,16 @@ Knowledge Vault 内容摄取脚本
 
 import argparse
 import hashlib
+import ipaddress
 import os
 import re
 import subprocess
 import sys
+import urllib.error
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 # ── 脚本目录（用于定位同目录的 fix_image_paths） ──
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -102,6 +104,65 @@ def _filename_for_remote(url: str) -> str:
     return f"{hashlib.md5(url.encode('utf-8')).hexdigest()[:12]}{_ext_from_url(url)}"
 
 
+# ── SSRF 防护（v1.14.0）──
+# download_remote_images 会请求文档正文里出现的任意远程图 URL；摄取来路不明
+# 的 markdown 时，内嵌 URL 可能指向本机/内网/云 metadata（169.254.169.254）。
+# 下载前做四层校验，任一失败走既有降级路径（保留远程链接 + 警告，不阻塞 ingest）：
+#   ① URL 校验：scheme 仅 http/https + host 非环回/私网/链路本地段
+#   ② 重定向逐跳：每个 3xx 跳转目标重新过 ①（否则初始校验可被重定向绕过）
+#   ③ 响应类型：Content-Type 为 text/html 视为错误页，拒收
+#   ④ 大小上限：分块读累计超过 MAX_IMAGE_BYTES 放弃，防止意外大文件写满磁盘
+# 域名按字面量校验，不做 DNS 解析级防护（DNS rebinding 超出个人工具威胁模型）。
+# 自建内网图床用户可设 KV_ALLOW_PRIVATE_IMAGE_HOSTS=1 跳过私网段拦截。
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+_PRIVATE_NETS = tuple(
+    ipaddress.ip_network(n)
+    for n in (
+        "0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16",
+        "172.16.0.0/12", "192.168.0.0/16",
+        "::1/128", "fc00::/7", "fe80::/10",
+    )
+)
+
+
+def _is_private_host(host: str) -> bool:
+    """host 是否指向本机环回/私网/链路本地段（含云 metadata 169.254.169.254）。"""
+    if not host:
+        return True
+    if host.lower() == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return False  # 普通域名：字面量层放行（不做 DNS 解析级防护）
+    return any(ip in net for net in _PRIVATE_NETS)
+
+
+def _url_allowed(url: str) -> bool:
+    """远程图 URL 安全校验：scheme 白名单 + host 非私网段（除非显式放行）。"""
+    try:
+        parts = urlparse(url)
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https"):
+        return False
+    if _is_private_host(parts.hostname or ""):
+        return os.environ.get("KV_ALLOW_PRIVATE_IMAGE_HOSTS") == "1"
+    return True
+
+
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    """重定向逐跳校验：每个跳转目标重新过 _url_allowed，未过即断（走降级）。"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _url_allowed(newurl):
+            raise urllib.error.HTTPError(
+                newurl, code, f"SSRF guard: blocked redirect to {newurl}", headers, fp
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def download_remote_images(text: str, images_dir: Path) -> tuple[str, dict]:
     """扫描 text 里的远程图 `![](https://...)`，下载到 images_dir，替换为本地双链。
 
@@ -114,13 +175,13 @@ def download_remote_images(text: str, images_dir: Path) -> tuple[str, dict]:
     """
     stats = {"downloaded": 0, "skipped": 0, "failed": 0}
 
-    # 代理（环境变量优先，不硬编码）
+    # 代理（环境变量优先，不硬编码）；重定向处理器替换为逐跳校验版
     proxies: dict[str, str] = {}
     for var in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
         v = os.environ.get(var)
         if v:
             proxies["https" if var.lower().startswith("https") else "http"] = v
-    opener = build_opener(ProxyHandler(proxies)) if proxies else build_opener()
+    opener = build_opener(ProxyHandler(proxies), _SafeRedirectHandler())
 
     def _download(match: re.Match) -> str:
         url = match.group(2)
@@ -132,9 +193,21 @@ def download_remote_images(text: str, images_dir: Path) -> tuple[str, dict]:
             stats["skipped"] += 1
             return wikilink
         try:
+            if not _url_allowed(url):  # SSRF ①：私网/metadata/非 http(s) 拦截
+                raise ValueError("SSRF guard: private or unauthorized host")
             req = Request(url, headers={"User-Agent": "Mozilla/5.0 (knowledge-vault ingest)"})
             with opener.open(req, timeout=20) as resp:
-                data = resp.read()
+                ctype = (resp.headers.get("Content-Type") or "").lower()
+                if "text/html" in ctype:  # SSRF ③：错误页拒收
+                    raise ValueError(f"not an image (content-type: {ctype})")
+                data = b""
+                while True:  # SSRF ④：分块读 + 大小上限
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    data += chunk
+                    if len(data) > MAX_IMAGE_BYTES:
+                        raise ValueError(f"exceeds size limit ({MAX_IMAGE_BYTES // 1024 // 1024}MB)")
             if len(data) < 100:  # 太小，疑似错误页/占位图
                 raise ValueError(f"suspect placeholder ({len(data)} bytes)")
             local_path.write_bytes(data)
@@ -142,7 +215,7 @@ def download_remote_images(text: str, images_dir: Path) -> tuple[str, dict]:
             return wikilink
         except Exception as e:
             stats["failed"] += 1
-            print(f"  [远程图] 下载失败，保留远程链接: {url[:70]} ({type(e).__name__})")
+            print(f"  [远程图] 下载失败，保留远程链接: {url[:70]} ({type(e).__name__}: {e})")
             return match.group(0)  # 保留原远程引用
 
     new_text = RE_REMOTE_IMG.sub(_download, text)

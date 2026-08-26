@@ -284,6 +284,7 @@ outputs/
 - 脚本入口已内置 Windows UTF-8 输出处理（`sys.stdout.reconfigure`），中文报告在控制台不乱码，无需额外设 `PYTHONUTF8=1`
 - 路径参数在 Windows 下支持 `/` 和 `\` 两种分隔符（脚本内部使用 `pathlib`）
 - 图片识别依赖执行模型的视觉能力：Claude Code（视觉模型）支持；Cursor/Windsurf 等部分配置可能不支持，此时自动降级为纯文本推断 + 免责声明（通过 `purpose.md` `image_recognition` 控制）
+- 远程图下载含 SSRF 防护（v1.14.0）：环回/私网/链路本地地址（含云 metadata）默认拒绝下载并保留远程链接；自建内网图床需设 `KV_ALLOW_PRIVATE_IMAGE_HOSTS=1`。防护为域名/IP 字面量层，不含 DNS rebinding 防御
 
 ---
 
@@ -316,6 +317,6 @@ outputs/
 
 ## 版本
 
-当前版本：v1.13.0 — 详见 CHANGELOG.md
+当前版本：v1.14.0 — 详见 CHANGELOG.md
 
 > README 随 Skill 版本同步更新。如果你的 Skill 版本与 README 描述不符，请以 SKILL.md 为准。

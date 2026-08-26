@@ -1,6 +1,6 @@
 ---
 name: knowledge-vault
-version: 1.13.0
+version: 1.14.0
 description: |
   USE WHEN: 用户提及"知识库"、"知识管理"、"初始化知识库"、"摄取文件"、"消化知识"、"知识巡检"、
   "知识问答"、"帮我整理文档"、"提取概念"、"生成主题页"、"从知识库移除"、"删除源文件"、
@@ -21,7 +21,7 @@ sources. Works with Obsidian for visualization but doesn't depend on it.
 
 ## Phase Router
 
-> **Version**: 1.13.0. If encountering issues already fixed in recent versions, check
+> **Version**: 1.14.0. If encountering issues already fixed in recent versions, check
 > whether this skill is outdated — compare SKILL.md frontmatter `version` with
 > CHANGELOG.md latest entry.
 
@@ -136,6 +136,10 @@ python <skill-path>/scripts/ingest.py --auto --vault <vault-path>
 Output lands in `raw/YYYY-MM-DD/{filename}-{EXT}-{date}.md`, images in `raw/images/`.
 Audio/video transcripts use `raw/YYYY-MM-DD/{filename}-{EXT}-转写-{date}.md`.
 Image paths are auto-fixed after conversion.
+Remote `![](https://...)` images are downloaded to `raw/images/` (idempotent,
+failed downloads keep the remote link). SSRF guard (v1.14.0): URLs pointing to
+loopback/private/link-local hosts (incl. cloud metadata) are blocked; set
+`KV_ALLOW_PRIVATE_IMAGE_HOSTS=1` only for a self-hosted LAN image server.
 
 After ingestion, proceed to Digest.
 
@@ -201,8 +205,10 @@ for detailed rules on deduplication, image processing, and naming.
    - 不识图（text inference + disclaimer）
    Wait for the user's strategy choice before proceeding. The chosen strategy
    drives Digestion Step 3 (image recognition) per `references/digestion/generation.md`.
-   Note: remote images cannot be recognized locally (download is v1.13.0); the
-   strategy does not apply to them. When `image_recognition` is `disabled` or
+   Note: remote images cannot be recognized locally; the strategy does not
+   apply to them. A remote link remaining after ingest means the download
+   failed or the URL was blocked by the SSRF guard (v1.14.0). When
+   `image_recognition` is `disabled` or
    `purpose.md` is absent, skip this sub-step. If no new files, report and
    stop — do not enter digestion.
 
