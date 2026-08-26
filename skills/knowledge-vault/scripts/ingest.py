@@ -84,7 +84,8 @@ def sanitize_filename(name: str) -> str:
 
 
 # ── 远程图本地化（v1.13.0 T2.1）──
-# 8月3号起笔记同步助手停止下载图片，增量文章的远程图必须由 ingest 本地化，
+# 部分上游同步工具只保留远程图链接、不下载到本地，这类增量文章的远程图
+# 必须由 ingest 本地化，
 # 否则 Obsidian 无法渲染。策略：全下——广告过滤交给 Digest 阶段（Agent 识图
 # +上下文，220 篇零污染验证；ingest 阶段公众号图床 URL 无广告特征，强分类
 # 会误杀知识图）。正则与 count_images.RE_REMOTE 同款，保持一致避免走样。
@@ -345,7 +346,7 @@ def transcribe_audio(audio_path: Path) -> str:
         beam_size=5,
         vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500),
-        initial_prompt="科技前哨 AI 人工智能 芯片 字节跳动 OpenAI Anthropic "
+        initial_prompt="AI 人工智能 芯片 OpenAI Anthropic "
                        "Musk Altman 深度学习 量子计算 自动驾驶 生成式 "
                        "Transformer GPT Claude DeepSeek Meta Google",
     )

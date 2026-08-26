@@ -24,10 +24,12 @@ from lintlib import normalize_filename
 SKIP_KEYWORDS = ["manifest", "metadata", "index", ".git", "__pycache__"]
 
 # ── 来源标识映射（预处理格式 ↔ raw 转写格式共用同一来源标识） ──
-# 键为文件名中能识别的来源标记，值为统一来源 ID
-SOURCE_PATTERNS = [
-    (re.compile(r"科技前哨|keji[_-]?qianshao", re.I), "keji-qianshao"),
-]
+# 键为文件名中能识别的来源标记，值为统一来源 ID。
+# 按你自己的内容源自定义，示例：
+#   SOURCE_PATTERNS = [
+#       (re.compile(r"my_podcast|my[_-]?podcast", re.I), "my-podcast"),
+#   ]
+SOURCE_PATTERNS = []
 
 # ── 日期提取正则 ──
 DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")

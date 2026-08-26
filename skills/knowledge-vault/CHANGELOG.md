@@ -1,5 +1,11 @@
 # knowledge-vault Changelog
 
+## [v1.14.1] - 2026-08-26
+
+### Fixed
+- 脱敏收口：移除文档与脚本示例中的个人内容源标识（dedup 去重示例改为通用名、图片路径修正示例改为 `source_vault/images/`、ASR 纠错示例与转写 initial_prompt 通用化、来源标识映射 SOURCE_PATTERNS 改为空表 + 自定义说明）
+- 远程图本地化注释通用化（不再引用特定上游工具行为）
+
 ## [v1.14.0] - 2026-08-26
 
 ### Added

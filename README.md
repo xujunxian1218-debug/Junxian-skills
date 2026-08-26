@@ -45,20 +45,24 @@ pip install "markitdown[all]>=0.1.5" "marker-pdf>=1.10.0"
 
 ### 安装方法
 
-将 Skill 文件夹复制到你的 Coding Agent 的 skills 目录：
+将 Skill 文件夹复制到你的 Coding Agent 的 skills 目录。不同 Agent 的目录约定不同，按你使用的 runtime 选择：
 
 ```bash
-# 项目级（只对当前项目生效）
+# Claude Code — 项目级（只对当前项目生效）
 cp -r skills/<skill-name>  <你的项目>/.claude/skills/
-
-# 全局（对所有项目生效）
+# Claude Code — 全局（对所有项目生效）
 cp -r skills/<skill-name>  ~/.claude/skills/
+
+# Codex / 其他使用 AGENTS.md 约定的 Agent — 项目级
+cp -r skills/<skill-name>  <你的项目>/.agents/skills/
 ```
 ```powershell
-# PowerShell — 项目级
+# PowerShell — Claude Code 项目级
 Copy-Item -Recurse skills/<skill-name> <你的项目>\.claude\skills\
-# PowerShell — 全局
+# PowerShell — Claude Code 全局
 Copy-Item -Recurse skills/<skill-name> "$env:USERPROFILE\.claude\skills\"
+# PowerShell — .agents 约定项目级
+Copy-Item -Recurse skills/<skill-name> <你的项目>\.agents\skills\
 ```
 
 ### 兼容性

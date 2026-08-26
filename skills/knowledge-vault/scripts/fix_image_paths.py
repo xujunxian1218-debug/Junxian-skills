@@ -7,19 +7,19 @@
 
 用法:
   # 指定源前缀和目标前缀
-  python fix_image_paths.py raw/ --from "笔记同步助手/images/" --to "raw/images/"
+  python fix_image_paths.py raw/ --from "source_vault/images/" --to "raw/images/"
 
   # 自动检测 Obsidian vault 前缀（匹配 ![[xxx/images/]] 模式）
   python fix_image_paths.py raw/ --to "raw/images/" --auto
 
   # 预览模式，不实际修改文件
-  python fix_image_paths.py raw/ --from "笔记同步助手/images/" --to "raw/images/" --dry-run
+  python fix_image_paths.py raw/ --from "source_vault/images/" --to "raw/images/" --dry-run
 
   # 同时修正 Obsidian 双链和标准 markdown 格式
-  python fix_image_paths.py raw/ --from "笔记同步助手/images/" --to "raw/images/" --both
+  python fix_image_paths.py raw/ --from "source_vault/images/" --to "raw/images/" --both
 
   # 补全裸文件名图片引用（PDF Marker 产出的 _page_X_Figure_Y.jpeg 等）
-  python fix_image_paths.py raw/ --from "笔记同步助手/images/" --to "raw/images/" --bare
+  python fix_image_paths.py raw/ --from "source_vault/images/" --to "raw/images/" --bare
 """
 
 import argparse
@@ -336,7 +336,7 @@ def main():
         "--from",
         dest="from_prefix",
         default=None,
-        help="源路径前缀（如 '笔记同步助手/images/'）",
+        help="源路径前缀（如 'source_vault/images/'）",
     )
     parser.add_argument(
         "--to",
