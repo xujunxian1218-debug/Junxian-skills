@@ -1,0 +1,1499 @@
+<!doctype html>
+<!--
+  skill-teardown 图形说明页（visual-guide.html）
+  结构与样式继承自统一的说明页范本（轻量直写模式：单文件自包含，不引入模板引擎与构建脚本）。
+  范本上游：project-flow-cy 的 visual-guide.html（https://github.com/CY-CHENYUE/project-flow-cy，GPL-3.0-or-later © CY-CHENYUE）。
+  本页单文件自包含：内联 CSS/JS，零外部引用、零图片文件引用；二维码只在 README。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>skill-teardown · 庖丁解 Skill 图形说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172027;
+      --muted: #61707d;
+      --line: #d8e1e8;
+      --paper: #fafbf6;
+      --panel: #ffffff;
+      --blue: #1f6f9b;
+      --teal: #16806f;
+      --green: #507c38;
+      --amber: #a66b1d;
+      --red: #b55248;
+      --violet: #6c5a9e;
+      --shadow: 0 18px 42px rgba(23, 32, 39, 0.12);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #fafbf6 0%, #f2f7f8 44%, #fff8ed 100%);
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid rgba(23, 32, 39, 0.09);
+      background: rgba(250, 251, 246, 0.9);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-inner {
+      width: min(1180px, calc(100% - 32px));
+      min-height: 64px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #172027;
+      color: #fff;
+      font-weight: 850;
+    }
+
+    .brand strong,
+    .brand span {
+      display: block;
+    }
+
+    .brand strong {
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .brand span {
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+
+    .nav a,
+    .chip-button {
+      min-height: 36px;
+      border: 1px solid rgba(23, 32, 39, 0.14);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      color: #26353f;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .nav a {
+      font-size: 13px;
+    }
+
+    .nav a:hover,
+    .chip-button:hover,
+    .chip-button.is-active {
+      transform: translateY(-1px);
+      border-color: rgba(31, 111, 155, 0.42);
+      background: #fff;
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    section[id] {
+      scroll-margin-top: 86px;
+    }
+
+    .section {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 64px 0;
+    }
+
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: grid;
+      grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.08fr);
+      gap: 38px;
+      align-items: center;
+      padding-top: 34px;
+      padding-bottom: 42px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+      font-size: 64px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: 40px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 19px;
+      line-height: 1.3;
+    }
+
+    .lead {
+      max-width: 650px;
+      margin-bottom: 24px;
+      color: #40515d;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .primary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      border-radius: 999px;
+      background: #172027;
+      color: #fff;
+      padding: 10px 16px;
+      font-weight: 760;
+    }
+
+    .secondary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      border: 1px solid rgba(23, 32, 39, 0.16);
+      border-radius: 999px;
+      background: #fff;
+      color: #172027;
+      padding: 10px 16px;
+    }
+
+    .quick-idea {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .quick-idea div {
+      min-height: 86px;
+      border-left: 4px solid var(--blue);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.82);
+      padding: 12px 13px;
+      box-shadow: 0 10px 24px rgba(23, 32, 39, 0.07);
+    }
+
+    .quick-idea div:nth-child(2) {
+      border-color: var(--green);
+    }
+
+    .quick-idea div:nth-child(3) {
+      border-color: var(--red);
+    }
+
+    .quick-idea b,
+    .quick-idea span {
+      display: block;
+    }
+
+    .quick-idea span {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .story-stage {
+      min-height: 560px;
+      position: relative;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .stage-grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(23, 32, 39, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 32, 39, 0.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+    }
+
+    .stage-title {
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      z-index: 3;
+      color: #51616d;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .chaos-zone,
+    .flow-zone {
+      position: absolute;
+      top: 70px;
+      bottom: 28px;
+      width: 42%;
+      border-radius: var(--radius);
+      border: 1px solid rgba(23, 32, 39, 0.08);
+      background: rgba(250, 251, 246, 0.84);
+      padding: 18px;
+      z-index: 2;
+    }
+
+    .chaos-zone {
+      left: 24px;
+    }
+
+    .flow-zone {
+      right: 24px;
+    }
+
+    .zone-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      color: #31424d;
+      font-weight: 800;
+    }
+
+    .zone-label span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .chat-bubble {
+      position: absolute;
+      max-width: 180px;
+      border-radius: 18px;
+      background: #fff;
+      color: #394a56;
+      padding: 10px 12px;
+      box-shadow: 0 12px 24px rgba(23, 32, 39, 0.12);
+      font-size: 13px;
+      line-height: 1.45;
+      animation: floaty 5s ease-in-out infinite;
+    }
+
+    .chat-bubble:nth-child(2) {
+      left: 18px;
+      top: 68px;
+      border-top-left-radius: 6px;
+    }
+
+    .chat-bubble:nth-child(3) {
+      right: 20px;
+      top: 132px;
+      border-top-right-radius: 6px;
+      animation-delay: 0.7s;
+    }
+
+    .chat-bubble:nth-child(4) {
+      left: 42px;
+      top: 224px;
+      animation-delay: 1.4s;
+    }
+
+    .lost-card {
+      position: absolute;
+      left: 50%;
+      bottom: 34px;
+      transform: translateX(-50%);
+      width: min(210px, calc(100% - 40px));
+      border: 1px dashed rgba(181, 82, 72, 0.5);
+      border-radius: var(--radius);
+      background: #fff7f5;
+      color: var(--red);
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .machine {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 4;
+      width: 150px;
+      min-height: 142px;
+      transform: translate(-50%, -50%);
+      border: 1px solid rgba(23, 32, 39, 0.12);
+      border-radius: var(--radius);
+      background: #172027;
+      color: #fff;
+      box-shadow: 0 20px 44px rgba(23, 32, 39, 0.22);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 16px;
+    }
+
+    .machine b,
+    .machine span {
+      display: block;
+    }
+
+    .machine b {
+      font-size: 18px;
+    }
+
+    .machine span {
+      margin-top: 8px;
+      color: #cfe1dd;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .pulse {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 1;
+      width: 190px;
+      height: 190px;
+      transform: translate(-50%, -50%);
+      border: 1px solid rgba(22, 128, 111, 0.26);
+      border-radius: 50%;
+      animation: pulse 2.8s ease-out infinite;
+    }
+
+    .file-card {
+      min-height: 78px;
+      border: 1px solid rgba(23, 32, 39, 0.12);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 12px 24px rgba(23, 32, 39, 0.12);
+      padding: 12px;
+      margin-bottom: 12px;
+      animation: appear 0.35s ease both;
+    }
+
+    .file-card:nth-child(3) {
+      animation-delay: 0.08s;
+    }
+
+    .file-card:nth-child(4) {
+      animation-delay: 0.16s;
+    }
+
+    .file-card b,
+    .file-card span {
+      display: block;
+    }
+
+    .file-card b {
+      color: #172027;
+    }
+
+    .file-card span {
+      margin-top: 5px;
+      color: #42545f;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .flow-line {
+      position: absolute;
+      z-index: 3;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--teal), transparent);
+      transform-origin: center;
+      opacity: 0.75;
+      animation: scan 2.4s ease-in-out infinite;
+    }
+
+    .line-a {
+      left: 39%;
+      top: 44%;
+      width: 24%;
+      transform: rotate(0deg);
+    }
+
+    .line-b {
+      left: 39%;
+      top: 55%;
+      width: 24%;
+      transform: rotate(0deg);
+      animation-delay: 0.6s;
+    }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.6; }
+      100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+    }
+
+    @keyframes appear {
+      from { transform: translateX(18px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes scan {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 0.9; }
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(280px, 0.48fr);
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 26px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 0;
+    }
+
+    .before-after {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 82px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .contrast-card {
+      min-height: 330px;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 18px;
+      box-shadow: 0 14px 32px rgba(23, 32, 39, 0.08);
+    }
+
+    .arrow-box {
+      display: grid;
+      place-items: center;
+      color: var(--teal);
+      font-size: 40px;
+      font-weight: 800;
+    }
+
+    .mini-chat {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini-chat div {
+      width: fit-content;
+      max-width: 90%;
+      border-radius: 18px;
+      background: #f2f6f7;
+      padding: 10px 12px;
+      color: #43545f;
+      font-size: 14px;
+    }
+
+    .mini-chat div:nth-child(2) {
+      justify-self: end;
+      background: #fff0ed;
+    }
+
+    .mini-files {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini-file {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fbfcf8;
+      padding: 10px;
+    }
+
+    .mini-file i {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      background: rgba(31, 111, 155, 0.12);
+      color: var(--blue);
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .mini-file b,
+    .mini-file span {
+      display: block;
+    }
+
+    .mini-file span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .benefit-card,
+    .action-card,
+    .relay-panel,
+    .map-panel,
+    .hook-panel {
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(23, 32, 39, 0.07);
+    }
+
+    .benefit-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      background: #f0f7f6;
+    }
+
+    .ring {
+      width: 38px;
+      height: 38px;
+      border: 7px solid var(--teal);
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .ring::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 7px;
+      right: -12px;
+      bottom: 0;
+      border-radius: 999px;
+      background: var(--teal);
+      transform: rotate(38deg);
+    }
+
+    .shield {
+      width: 38px;
+      height: 44px;
+      background: var(--green);
+      clip-path: polygon(50% 0, 92% 16%, 82% 78%, 50% 100%, 18% 78%, 8% 16%);
+    }
+
+    .handoff-icon {
+      width: 48px;
+      height: 34px;
+      position: relative;
+    }
+
+    .handoff-icon::before,
+    .handoff-icon::after {
+      content: "";
+      position: absolute;
+      top: 5px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .handoff-icon::before {
+      left: 0;
+    }
+
+    .handoff-icon::after {
+      right: 0;
+      background: var(--blue);
+    }
+
+    .handoff-icon span {
+      position: absolute;
+      left: 16px;
+      top: 12px;
+      width: 16px;
+      height: 5px;
+      border-radius: 999px;
+      background: #172027;
+    }
+
+    .benefit-card p,
+    .action-card p,
+    .relay-panel p,
+    .map-panel p,
+    .hook-panel p {
+      color: var(--muted);
+      line-height: 1.62;
+      margin-bottom: 0;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .action-visual {
+      min-height: 240px;
+      border-radius: var(--radius);
+      background: #f7faf8;
+      border: 1px solid rgba(23, 32, 39, 0.08);
+      margin-top: 16px;
+      padding: 16px;
+      display: grid;
+      align-content: center;
+      gap: 10px;
+    }
+
+    .folder-box {
+      display: grid;
+      grid-template-columns: 60px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+    }
+
+    .folder-icon {
+      width: 54px;
+      height: 42px;
+      border-radius: 5px;
+      background: var(--amber);
+      position: relative;
+    }
+
+    .folder-icon::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: -8px;
+      width: 28px;
+      height: 14px;
+      border-radius: 5px 5px 0 0;
+      background: #d2923c;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      border: 1px solid rgba(23, 32, 39, 0.12);
+      border-radius: 999px;
+      background: #fff;
+      color: #384a55;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    .relay-stage {
+      display: grid;
+      grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(160px, 0.9fr);
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    .agent-card,
+    .log-card {
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fbfcf8;
+      padding: 14px;
+      min-height: 160px;
+    }
+
+    .agent-card b,
+    .log-card b {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .agent-card span,
+    .log-card span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.48;
+      font-size: 14px;
+    }
+
+    .log-card {
+      background: #172027;
+      color: #fff;
+    }
+
+    .log-card span {
+      color: #d7e5e2;
+    }
+
+    .moving-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 0 8px rgba(22, 128, 111, 0.12);
+      margin: 12px auto;
+      animation: bounceDot 1.6s ease-in-out infinite;
+    }
+
+    @keyframes bounceDot {
+      0%, 100% { transform: translateX(-28px); }
+      50% { transform: translateX(28px); }
+    }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .map-buttons {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .map-button {
+      text-align: left;
+      border: 1px solid rgba(23, 32, 39, 0.12);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .map-button.is-active,
+    .map-button:hover {
+      border-color: rgba(31, 111, 155, 0.44);
+      box-shadow: 0 10px 24px rgba(23, 32, 39, 0.08);
+    }
+
+    .map-button b,
+    .map-button span {
+      display: block;
+    }
+
+    .map-button span {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    .map-detail {
+      min-height: 380px;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 14px 32px rgba(23, 32, 39, 0.08);
+      padding: 20px;
+    }
+
+    .map-detail p {
+      color: #40515d;
+      line-height: 1.65;
+    }
+
+    .map-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .mini-rule {
+      border: 1px solid rgba(23, 32, 39, 0.08);
+      border-radius: var(--radius);
+      background: #fbfcf8;
+      padding: 12px;
+    }
+
+    .mini-rule b,
+    .mini-rule span {
+      display: block;
+    }
+
+    .mini-rule b {
+      color: var(--blue);
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .mini-rule span {
+      color: #43545f;
+      line-height: 1.45;
+    }
+
+    .hook-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+      gap: 16px;
+    }
+
+    .hook-visual {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .hook-step {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border: 1px solid rgba(23, 32, 39, 0.08);
+      border-radius: var(--radius);
+      background: #fbfcf8;
+      padding: 12px;
+    }
+
+    .hook-step i {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(31, 111, 155, 0.12);
+      color: var(--blue);
+      font-style: normal;
+      font-weight: 850;
+    }
+
+    .hook-step span {
+      color: #43545f;
+      line-height: 1.48;
+    }
+
+    details {
+      margin-top: 14px;
+      border: 1px solid rgba(23, 32, 39, 0.1);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px 14px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    details p,
+    details li {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .code-path {
+      display: block;
+      margin-top: 12px;
+      border-radius: var(--radius);
+      background: #172027;
+      color: #eef5f3;
+      padding: 14px;
+      overflow-wrap: anywhere;
+      line-height: 1.48;
+    }
+
+    footer {
+      border-top: 1px solid rgba(23, 32, 39, 0.08);
+      background: rgba(255, 255, 255, 0.55);
+      color: var(--muted);
+      text-align: center;
+      padding: 28px 16px 34px;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .section-head,
+      .before-after,
+      .benefit-grid,
+      .actions,
+      .relay-stage,
+      .map-layout,
+      .hook-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .arrow-box {
+        min-height: 46px;
+        transform: rotate(90deg);
+      }
+
+      .story-stage {
+        min-height: 640px;
+      }
+
+      .chaos-zone,
+      .flow-zone {
+        width: calc(100% - 48px);
+        height: 220px;
+        top: auto;
+        bottom: auto;
+      }
+
+      .chaos-zone {
+        top: 66px;
+      }
+
+      .flow-zone {
+        bottom: 24px;
+      }
+
+      .machine {
+        top: 50%;
+      }
+
+      .line-a,
+      .line-b {
+        display: none;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .topbar-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 0;
+      }
+
+      .nav {
+        justify-content: flex-start;
+      }
+
+      .section {
+        width: min(100% - 24px, 1180px);
+        padding: 48px 0;
+      }
+
+      h1 {
+        font-size: 42px;
+      }
+
+      h2 {
+        font-size: 30px;
+      }
+
+      .quick-idea,
+      .map-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .story-stage {
+        min-height: 720px;
+      }
+
+      .chaos-zone {
+        top: 62px;
+      }
+
+      .flow-zone {
+        bottom: 20px;
+      }
+
+      .machine {
+        width: 132px;
+        min-height: 126px;
+      }
+
+      .chat-bubble {
+        max-width: 150px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#top" aria-label="回到顶部">
+        <div class="brand-mark">庖</div>
+        <div>
+          <strong>skill-teardown</strong>
+          <span>庖丁解 Skill · 九段分析卡</span>
+        </div>
+      </a>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#problem">先看问题</a>
+        <a href="#benefits">有什么用</a>
+        <a href="#actions">它做什么</a>
+        <a href="#relay">怎么拆</a>
+        <a href="#map">九段地图</a>
+        <a href="#limits">红线</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="section hero">
+      <div>
+        <p class="eyebrow">For people who collect skills</p>
+        <h1>它不告诉你好不好，只告诉你凭什么有效。</h1>
+        <p class="lead">
+          不用先懂分析框架。你只要记住一件事：skill-teardown 把任意一个 Agent Skill 拆成一张九段分析卡——道法术例戒，可学习、可复用、可溯源。
+        </p>
+        <div class="hero-actions">
+          <a class="primary" href="#problem">看对比</a>
+          <a class="secondary" href="#relay">看五步流程</a>
+        </div>
+        <div class="quick-idea">
+          <div>
+            <b>之前</b>
+            <span>装了一堆 Skill，只知道「能跑」。</span>
+          </div>
+          <div>
+            <b>中间</b>
+            <span>九段拆解把设计判断显式化。</span>
+          </div>
+          <div>
+            <b>之后</b>
+            <span>一张卡沉淀下可复用的知识。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-stage" aria-label="skill-teardown 工作方式动画">
+        <div class="stage-grid-bg"></div>
+        <div class="stage-title">Skill 素材 → skill-teardown → 九段分析卡</div>
+        <div class="chaos-zone">
+          <div class="zone-label">没拆过 <span>读过即忘</span></div>
+          <div class="chat-bubble">“它为什么这样设计？”</div>
+          <div class="chat-bubble">“哪些能搬到我的 Skill 里？”</div>
+          <div class="chat-bubble">“什么时候会坑我？”</div>
+          <div class="lost-card">收藏夹吃灰：只剩功能印象</div>
+        </div>
+        <div class="pulse"></div>
+        <div class="machine">
+          <b>skill-teardown</b>
+          <span>判别 · 逐段 · 终检</span>
+        </div>
+        <div class="flow-line line-a"></div>
+        <div class="flow-line line-b"></div>
+        <div class="flow-zone">
+          <div class="zone-label">有拆解 <span>判断落卡</span></div>
+          <div class="file-card">
+            <b>道 · 顶层原则</b>
+            <span>凭什么有效的判断句</span>
+          </div>
+          <div class="file-card">
+            <b>术 · 可复用资产</b>
+            <span>检查清单、决策表，拿走就能用</span>
+          </div>
+          <div class="file-card">
+            <b>戒 · 边界与风险</b>
+            <span>什么时候不该用、会怎么坏</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="problem">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">The problem</p>
+          <h2>没有它时，读懂一个 Skill 靠脑补。</h2>
+        </div>
+        <p>页面不先讲九段结构，而先讲读法的差别：为什么「看懂了」和「拆明白了」是两件事。</p>
+      </div>
+      <div class="before-after">
+        <article class="contrast-card">
+          <h3>普通阅读式理解</h3>
+          <div class="mini-chat">
+            <div>用户：帮我看看这个 Skill 讲什么。</div>
+            <div>Agent：它是一个做 X 的工具，有 A、B、C 功能……</div>
+            <div>三天后：想不起来它为什么好用。</div>
+          </div>
+          <details>
+            <summary>问题在哪里</summary>
+            <p>摘要复述功能清单，没有知识增量；评分回答的是「好不好」，不是「凭什么」；更糟的是，原文观点和你自己的解读混在一起，分不清哪些是它说的、哪些是你猜的。</p>
+          </details>
+        </article>
+        <div class="arrow-box">→</div>
+        <article class="contrast-card">
+          <h3>skill-teardown 式拆解</h3>
+          <div class="mini-files">
+            <div class="mini-file"><i>1</i><div><b>先判别类型与形态</b><span>决定用哪类眼光看它</span></div></div>
+            <div class="mini-file"><i>2</i><div><b>再逐段过质量门</b><span>每段有硬上限与红线</span></div></div>
+            <div class="mini-file"><i>3</i><div><b>最后留一张九段卡</b><span>观点可溯源，资产可拿走</span></div></div>
+          </div>
+          <details>
+            <summary>变化是什么</summary>
+            <p>读法从「浏览」变成「拆判断」：为什么这样设计、哪些资产能搬走、什么时候会坏——全部显式化，并且逐条标注是原文明示、约束推导还是分析者补充。</p>
+          </details>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="benefits">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Why it helps</p>
+          <h2>它主要补上三种能力。</h2>
+        </div>
+        <p>分得清、拿得走、躲得开——这三件事有了，看过的 Skill 才会变成你的知识。</p>
+      </div>
+      <div class="benefit-grid">
+        <article class="benefit-card">
+          <div class="benefit-icon"><div class="ring"></div></div>
+          <h3>分得清</h3>
+          <p>溯源纪律：原文观点、约束推导、分析补充三态标注，关键处引用原文，观点可回链材料。</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon"><div class="shield"></div></div>
+          <h3>拿得走</h3>
+          <p>术段资产：检查清单、决策表、关键话术、契约定义——每项都按「拿走就能用」的标准沉淀。</p>
+        </article>
+        <article class="benefit-card">
+          <div class="benefit-icon"><div class="handoff-icon"><span></span></div></div>
+          <h3>躲得开</h3>
+          <p>戒段边界：适用边界、外部依赖链、一致性风险，三类各至少两条具体发现，引入前先看会怎么坏。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="actions">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">What the skill does</p>
+          <h2>它只做一件事：产一张九段分析卡。</h2>
+        </div>
+        <p>边界越清楚，越容易理解。摘要、评分、改造建议都刻意不做——那是别的工具的职责。</p>
+      </div>
+      <div class="actions">
+        <article class="action-card">
+          <h3>A. 五步拆解</h3>
+          <p>从材料准入到终检，每步都过自己的门，终检不通过的卡不得标记为完成。</p>
+          <div class="action-visual">
+            <div class="folder-box">
+              <div class="folder-icon"></div>
+              <div><b>analysis-cards/{skill名}.md</b><p>一卡一 Skill，不覆盖旧卡</p></div>
+            </div>
+            <div class="chip-list">
+              <span class="chip">材料准入</span>
+              <span class="chip">定深度</span>
+              <span class="chip">通读三判别</span>
+              <span class="chip">逐段产出</span>
+              <span class="chip">终检</span>
+            </div>
+          </div>
+          <details>
+            <summary>每步的门是什么</summary>
+            <p>材料缺失先一次性通报、禁止把没读到伪装成读过；段落有硬上限，中检拦在段内；三档深度（快扫 / 标准 / 深度）按需选择，未明说时按标准执行并说明。</p>
+          </details>
+        </article>
+
+        <article class="action-card">
+          <h3>B. 三条边界</h3>
+          <p>不写摘要、不打分、不改造——产出的是关于被拆对象的知识，不是对它的修改。</p>
+          <div class="action-visual">
+            <div class="folder-box">
+              <div class="folder-icon" style="background:#16806f;"></div>
+              <div><b>边界声明</b><p>先立住，再动笔</p></div>
+            </div>
+            <div class="chip-list">
+              <span class="chip">不写摘要</span>
+              <span class="chip">不打分</span>
+              <span class="chip">不改造</span>
+            </div>
+          </div>
+          <details>
+            <summary>为什么要刻意设边界</summary>
+            <p>复述功能清单没有知识增量，摘要工具能干的事不重复造；质量评分与改进建议是审计工具的职责；拆解只沉淀「它凭什么有效」的知识，风险只在戒段指出，不给修改清单。</p>
+          </details>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="relay">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">How it works</p>
+          <h2>五步流程像一条流水线，每步都有门。</h2>
+        </div>
+        <p>这张图是最重要的使用方式：素材从左边进，九段卡从右边出，中间每一步都不空转。</p>
+      </div>
+      <div class="relay-panel">
+        <div class="relay-stage">
+          <div class="agent-card">
+            <b>Skill 素材</b>
+            <span>最低要求 SKILL.md 全文；references、CHANGELOG 等配套越全，术与戒两段越有料。</span>
+          </div>
+          <div>
+            <div class="moving-dot"></div>
+            <div class="log-card">
+              <b>五步流程</b>
+              <span>材料准入（读取清单）<br>定深度（快扫/标准/深度）<br>通读三判别（类型/形态/条件项）<br>逐段产出（段级硬上限）<br>终检（交付门）</span>
+            </div>
+            <div class="moving-dot"></div>
+          </div>
+          <div class="agent-card">
+            <b>九段分析卡</b>
+            <span>元信息 / 总体 / 道 / 法 / 术 / 例 / 戒 / 洞察 / 版本，观点可溯源，资产可拿走。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="map">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Card map</p>
+          <h2>不需要记住很多术语，只要记住这张九段地图。</h2>
+        </div>
+        <p>点击左侧按钮，看每一段解决什么问题。默认只展示核心职责，细节藏在展开项里。</p>
+      </div>
+      <div class="map-layout">
+        <div class="map-buttons" id="mapButtons" role="tablist" aria-label="九段地图"></div>
+        <div class="map-detail" id="mapDetail" role="tabpanel"></div>
+      </div>
+    </section>
+
+    <section class="section" id="limits">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Quality gates</p>
+          <h2>红线不是口号，是逐条可执行的门。</h2>
+        </div>
+        <p>违反任何一条，卡不合格。这些门内置在流程里，不依赖你记得住。</p>
+      </div>
+      <div class="hook-grid">
+        <article class="hook-panel">
+          <h3>它怎么拦</h3>
+          <div class="hook-visual">
+            <div class="hook-step"><i>1</i><span>溯源：所有「原文观点」必须能在输入材料中找到依据。</span></div>
+            <div class="hook-step"><i>2</i><span>推断标注：不确定的判断必须标注三态之一，不装确定。</span></div>
+            <div class="hook-step"><i>3</i><span>道段禁空话：「注重质量」类判失败，判断句必须能解释设计取舍。</span></div>
+            <div class="hook-step"><i>4</i><span>戒段下限：三类检查各至少两条具体发现，确无发现要说明为何。</span></div>
+          </div>
+        </article>
+        <article class="hook-panel">
+          <h3>怎么用它</h3>
+          <p>纯提示词 Skill，零脚本零依赖，任何 Agent 都能跑。对 Agent 说一句话即可：</p>
+          <code class="code-path">帮我拆解 ~/skills/xxx 这个 skill，出一张分析卡</code>
+          <details>
+            <summary>三档深度怎么选</summary>
+            <p>「看看 / 值不值」走快扫，回答值不值得深究；「拆解 / 分析卡」走标准，九段全产出；「深度 / 学方法论」走深度，含同类对照。所有质量门为 AI 自评纪律而非机器脚本——框架提供纪律，不提供保证。</p>
+          </details>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    skill-teardown · 把「它凭什么有效」拆成道、法、术、例、戒。
+  </footer>
+
+  <script>
+    const mapData = {
+      "1 元信息": {
+        tag: "事实底座",
+        title: "这是什么、实际读了什么",
+        text: "来源、版本基准、实际读取的文件清单——部分读取和完全未读取都要标注。这是整张卡的事实边界。",
+        use: "引用结论前先看这里，确认材料覆盖面。",
+        avoid: "不看读取清单就把卡当全知视角。",
+        example: "来源链接 · 版本基准 · 文件清单 · 类型三组 · 上下游关系"
+      },
+      "2 总体": {
+        tag: "10 秒判断",
+        title: "值不值得往下读",
+        text: "不超过 150 字：一句话定位，加这个 Skill 最值得学的一两个点。",
+        use: "快速筛卡，决定要不要细读。",
+        avoid: "跳过它直接扎进细节。",
+        example: "「一句话定位 + 最值得学的点」"
+      },
+      "3 道": {
+        tag: "顶层原则",
+        title: "凭什么有效",
+        text: "2-5 条判断句，每条都能解释流程为什么这样设计，空话判失败。",
+        use: "学设计思想，迁移决策依据。",
+        avoid: "当成功能介绍来摘抄。",
+        example: "「当最终需要协作编辑时，可编辑性优先于视觉炫技」"
+      },
+      "4 法": {
+        tag: "流程骨架",
+        title: "它怎么运转",
+        text: "Mermaid 流程图，六要素齐全；先判别流程形态（循环 / 多模式 / 状态机 / 嵌套 / 产物机器检查）再画图。",
+        use: "对照自己的流程找结构差距。",
+        avoid: "跳过要素对照表只看图。",
+        example: "前置条件 · 决策节点 · 分支 · 回退 · 质量检查点 · 结束条件"
+      },
+      "5 术": {
+        tag: "可复用资产",
+        title: "拿走就能用",
+        text: "检查清单、决策表、提示词结构、输出模板、契约定义——每项按可直接迁移的标准沉淀，不写抽象描述。",
+        use: "建自己的 Skill 时来这里翻。",
+        avoid: "只读不拿，看完就忘。",
+        example: "质量 gate 三类 · 决策表 · 反借口话术"
+      },
+      "6 例": {
+        tag: "正反例证",
+        title: "判据长什么样",
+        text: "好例子说明符合什么原则，坏例子具体到行为地说明违反什么；每例标注来源，原文没有就标分析补充。",
+        use: "校准自己对原则的理解。",
+        avoid: "只看好例子跳过坏例子。",
+        example: "[原文明示] / [约束推导] / [分析补充]"
+      },
+      "7 戒": {
+        tag: "边界风险",
+        title: "何时会坑你",
+        text: "适用边界、外部依赖链、一致性风险三类归组，每类至少两条具体发现——无问题下限逼出真检查。",
+        use: "引入或复用前必读。",
+        avoid: "只看优点不看会怎么坏。",
+        example: "孤儿资产 · 规则互斥 · 版本口径漂移"
+      },
+      "8 洞察": {
+        tag: "分析者判断",
+        title: "与原文严格区分",
+        text: "基础四问：真正厉害在哪、没明说的隐含判断、可迁移场景、会过时的点。这一段是分析者的，不是原文的。",
+        use: "二手观点甄别与延伸思考。",
+        avoid: "与 1-7 段的原文事实混着读。",
+        example: "「没明说但实际依赖的隐含判断」"
+      },
+      "9 版本": {
+        tag: "重析触发",
+        title: "何时需要重拆",
+        text: "分析基准（日期 + 材料快照）加重析触发条件：大版本升级、流程结构变更、补齐配套文件时。",
+        use: "追踪上游演进，卡不沉默过期。",
+        avoid: "一张卡用三年不看基准。",
+        example: "Skill 大版本升级 / 流程结构变更 / 新增 evals"
+      }
+    };
+
+    function renderMapButtons() {
+      const box = document.getElementById("mapButtons");
+      box.innerHTML = Object.keys(mapData).map((key, index) => `
+        <button class="map-button${index === 0 ? " is-active" : ""}" data-key="${key}" role="tab">
+          <b>${key}</b>
+          <span>${mapData[key].tag}</span>
+        </button>
+      `).join("");
+      box.querySelectorAll(".map-button").forEach(button => {
+        button.addEventListener("click", () => showMap(button.dataset.key));
+      });
+    }
+
+    function showMap(key) {
+      const data = mapData[key];
+      document.getElementById("mapDetail").innerHTML = `
+        <p class="eyebrow">${data.tag}</p>
+        <h3>${data.title}</h3>
+        <p>${data.text}</p>
+        <div class="map-detail-grid">
+          <div class="mini-rule"><b>什么时候看</b><span>${data.use}</span></div>
+          <div class="mini-rule"><b>不要做什么</b><span>${data.avoid}</span></div>
+        </div>
+        <details open>
+          <summary>例子</summary>
+          <p>${data.example}</p>
+        </details>
+      `;
+      document.querySelectorAll(".map-button").forEach(button => {
+        button.classList.toggle("is-active", button.dataset.key === key);
+      });
+    }
+
+    renderMapButtons();
+    showMap("1 元信息");
+  </script>
+</body>
+</html>
